@@ -1,0 +1,62 @@
+name: Bug report
+description: Something Commilot does wrong
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. **Never paste an API key**, a full diff of private code, or anything
+        confidential — a redacted excerpt is enough.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you ran, and what Commilot did.
+      placeholder: |
+        $ commilot split --all
+        …
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: dropdown
+    id: provider
+    attributes:
+      label: Provider
+      options:
+        - gemini
+        - openai
+        - claude
+        - ollama
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Commilot version
+      description: Output of `commilot --version`
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: OS and Node version
+      placeholder: macOS 15 / Node 20.11
+    validations:
+      required: true
+
+  - type: textarea
+    id: verbose
+    attributes:
+      label: Output with --verbose
+      description: Re-run with `--verbose` and paste the relevant part. Redact anything private.
+      render: shell
