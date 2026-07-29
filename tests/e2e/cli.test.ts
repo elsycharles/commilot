@@ -94,14 +94,23 @@ describe('init (AC-13)', () => {
 });
 
 describe('providers (AC-14)', () => {
-  it('lists available and planned providers', async () => {
+  it('lists the four shipped providers with their state', async () => {
     const { stdout, exitCode } = await repo.run(['providers']);
+
     expect(exitCode).toBe(0);
     expect(stdout).toContain('gemini (default)');
+    expect(stdout).toContain('openai');
+    expect(stdout).toContain('claude');
+    expect(stdout).toContain('ollama');
     expect(stdout).toContain('API key configured');
-    expect(stdout).toContain('Coming in v1.1');
-    expect(stdout).toContain('Coming in v1.2');
+    expect(stdout).toContain('Ready — no API key needed');
     expect(stdout).toContain('Current provider: gemini');
+  });
+
+  it('switches provider through the config file', async () => {
+    expect((await repo.run(['config', 'set', 'provider', 'ollama'])).exitCode).toBe(0);
+    const { stdout } = await repo.run(['providers']);
+    expect(stdout).toContain('Current provider: ollama');
   });
 });
 
@@ -164,7 +173,7 @@ describe('generate', () => {
     server.reply(GENERATE_JSON);
     await repo.run(['generate', '--yes']);
 
-    const body = server.requests.at(-1) as {
+    const body = server.bodies.at(-1) as {
       systemInstruction: { parts: Array<{ text: string }> };
       contents: Array<{ parts: Array<{ text: string }> }>;
     };
@@ -213,7 +222,7 @@ describe('generate', () => {
 
     await repo.run(['generate', '--yes']);
 
-    const body = server.requests.at(-1) as { contents: Array<{ parts: Array<{ text: string }> }> };
+    const body = server.bodies.at(-1) as { contents: Array<{ parts: Array<{ text: string }> }> };
     expect(body.contents[0]?.parts[0]?.text).not.toContain('lockfileVersion');
   });
 
@@ -254,17 +263,63 @@ describe('provider selection (AC-06, AC-22)', () => {
     const result = await repo.run(['generate', '--provider', 'llama-at-home']);
 
     expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain('is not yet supported');
-    expect(result.stderr).toContain('Available: gemini');
-    expect(result.stderr).toContain('Coming soon: openai, claude');
+    expect(result.stderr).toContain('is not supported');
+    expect(result.stderr).toContain('Available: gemini, openai, claude, ollama');
   });
 
-  it('errors on a planned-but-unreleased provider', async () => {
+  it('runs every shipped provider through the same pipeline', async () => {
     repo.write('src.ts', 'export const a = 1;\n');
     repo.git('add', 'src.ts');
-    const result = await repo.run(['generate', '--provider', 'claude']);
-    expect(result.exitCode).toBe(1);
-    expect(result.stderr).toContain("Provider 'claude' is not yet supported");
+
+    for (const provider of ['gemini', 'openai', 'claude', 'ollama'] as const) {
+      server.reply(GENERATE_JSON);
+      const result = await repo.run(['generate', '--dry-run', '--provider', provider]);
+
+      expect(result.exitCode, `${provider} exit code`).toBe(0);
+      expect(result.stdout).toContain('feat(auth) - add jwt token refresh mechanism');
+      expect(result.stdout).toContain(`provider: ${provider}`);
+      expect(server.requests.at(-1)?.provider).toBe(provider);
+    }
+  });
+
+  it('sends the credentials each provider expects', async () => {
+    repo.write('src.ts', 'export const a = 1;\n');
+    repo.git('add', 'src.ts');
+
+    server.reply(GENERATE_JSON);
+    await repo.run(['generate', '--dry-run', '--provider', 'openai']);
+    expect(server.requests.at(-1)?.headers.authorization).toBe('Bearer sk-test');
+
+    server.reply(GENERATE_JSON);
+    await repo.run(['generate', '--dry-run', '--provider', 'claude']);
+    expect(server.requests.at(-1)?.headers['x-api-key']).toBe('sk-ant-test');
+    expect(server.requests.at(-1)?.headers['anthropic-version']).toBe('2023-06-01');
+
+    server.reply(GENERATE_JSON);
+    await repo.run(['generate', '--dry-run', '--provider', 'ollama']);
+    const ollama = server.requests.at(-1);
+    expect(ollama?.headers.authorization).toBeUndefined();
+    expect(ollama?.headers['x-api-key']).toBeUndefined();
+  });
+
+  it('runs ollama with no API key configured anywhere', async () => {
+    const local = createTestRepo(baseUrl);
+    try {
+      local.write(
+        '.commitHelper.yml',
+        `provider: ollama\nollama:\n  model: llama3.1\n  baseUrl: "${baseUrl}"\n  maxRetries: 0\n`,
+      );
+      local.write('src.ts', 'export const a = 1;\n');
+      local.git('add', 'src.ts');
+      server.reply(GENERATE_JSON);
+
+      const result = await local.run(['generate', '--yes']);
+
+      expect(result.exitCode).toBe(0);
+      expect(log(local)[0]).toBe('feat(auth) - add jwt token refresh mechanism');
+    } finally {
+      local.cleanup();
+    }
   });
 
   it('reports a missing API key with both configuration options', async () => {
@@ -383,7 +438,7 @@ describe('split (AC-02, AC-20, AC-21)', () => {
 
     expect(result.exitCode).toBe(0);
     expect(log()).toHaveLength(3); // 2 new + the fixture commit
-    const body = server.requests.at(-1) as {
+    const body = server.bodies.at(-1) as {
       systemInstruction: { parts: Array<{ text: string }> };
     };
     expect(body.systemInstruction.parts[0]?.text).toContain('Maximum 2 groups');

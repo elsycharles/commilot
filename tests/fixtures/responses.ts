@@ -41,6 +41,11 @@ export function openAiEnvelope(text: string): unknown {
   return { choices: [{ message: { content: text } }] };
 }
 
+/** Wraps a text payload in the Ollama chat envelope. */
+export function ollamaEnvelope(text: string): unknown {
+  return { model: 'llama3.1', message: { role: 'assistant', content: text }, done: true };
+}
+
 /** Wraps a text payload in the Anthropic messages envelope. */
 export function claudeEnvelope(text: string): unknown {
   return { content: [{ type: 'text', text }], stop_reason: 'end_turn' };
