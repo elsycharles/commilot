@@ -7,7 +7,10 @@ import { logger } from '../utils/logger.js';
 
 function statusText(info: ProviderInfo): string {
   if (info.status === 'planned') return chalk.dim(`Coming in ${info.version}`);
-  return info.configured ? chalk.green('API key configured') : chalk.yellow('No API key');
+  if (!info.requiresApiKey) return chalk.green('Ready — no API key needed');
+  return info.configured
+    ? chalk.green('API key configured')
+    : chalk.yellow(`No API key — set COMMILOT_${info.name.toUpperCase()}_KEY`);
 }
 
 function marker(info: ProviderInfo): string {

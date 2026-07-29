@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ProviderFactory } from '../../src/providers/ProviderFactory.js';
+import { ClaudeProvider } from '../../src/providers/ClaudeProvider.js';
 import { GeminiProvider } from '../../src/providers/GeminiProvider.js';
+import { OllamaProvider } from '../../src/providers/OllamaProvider.js';
+import { OpenAIProvider } from '../../src/providers/OpenAIProvider.js';
 import { configSchema } from '../../src/types/config.js';
 import { MissingApiKeyError, UnsupportedProviderError } from '../../src/utils/errors.js';
 
@@ -39,15 +42,38 @@ describe('createProvider', () => {
     try {
       ProviderFactory.createProvider(config({ provider: 'llama-at-home' }));
     } catch (err) {
-      expect((err as Error).message).toContain('Available: gemini');
-      expect((err as Error).message).toContain('Coming soon: openai, claude');
+      expect((err as Error).message).toContain('Available: gemini, openai, claude, ollama');
+      // Nothing is planned-but-unreleased any more, so no dangling clause.
+      expect((err as Error).message).not.toContain('Coming soon');
     }
   });
 
-  it('rejects providers that are known but not yet released', () => {
-    expect(() => ProviderFactory.createProvider(config({ provider: 'claude' }))).toThrow(
-      UnsupportedProviderError,
+  it('builds every shipped provider', () => {
+    const keys = { openai: { apiKey: 'sk' }, claude: { apiKey: 'sk-ant' } };
+    expect(ProviderFactory.createProvider(config({ provider: 'openai', ...keys }))).toBeInstanceOf(
+      OpenAIProvider,
     );
+    expect(ProviderFactory.createProvider(config({ provider: 'claude', ...keys }))).toBeInstanceOf(
+      ClaudeProvider,
+    );
+    expect(ProviderFactory.createProvider(config({ provider: 'ollama' }))).toBeInstanceOf(
+      OllamaProvider,
+    );
+  });
+
+  it('builds ollama without any api key', () => {
+    const provider = ProviderFactory.createProvider(configSchema.parse({ provider: 'ollama' }));
+    expect(provider.getProviderName()).toBe('Ollama (local)');
+    expect(provider.isConfigured()).toBe(true);
+  });
+
+  it('still requires a key for the hosted providers', () => {
+    expect(() =>
+      ProviderFactory.createProvider(configSchema.parse({ provider: 'openai' })),
+    ).toThrow(MissingApiKeyError);
+    expect(() =>
+      ProviderFactory.createProvider(configSchema.parse({ provider: 'claude' })),
+    ).toThrow(MissingApiKeyError);
   });
 
   it('requires an API key', () => {
@@ -70,9 +96,15 @@ describe('listProviders', () => {
       model: 'gemini-2.0-flash',
     });
 
-    expect(list[1]).toMatchObject({ name: 'openai', status: 'planned', version: 'v1.1' });
-    expect(list[2]).toMatchObject({ name: 'claude', status: 'planned', version: 'v1.2' });
-    expect(list.every((info) => (info.status === 'planned' ? !info.configured : true))).toBe(true);
+    expect(list[1]).toMatchObject({ name: 'openai', status: 'available', requiresApiKey: true });
+    expect(list[2]).toMatchObject({ name: 'claude', status: 'available', requiresApiKey: true });
+    expect(list[3]).toMatchObject({
+      name: 'ollama',
+      status: 'available',
+      requiresApiKey: false,
+      // Local inference needs no credentials, so it is configured by default.
+      configured: true,
+    });
   });
 
   it('marks a provider without a key as unconfigured', () => {

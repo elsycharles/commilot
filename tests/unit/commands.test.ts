@@ -284,12 +284,25 @@ describe('config commands', () => {
 });
 
 describe('providersCommand (AC-14)', () => {
-  it('shows availability and the current provider', async () => {
+  it('lists every shipped provider with its state', async () => {
     await providersCommand(repo);
     const output = stdout.join('\n');
+
     expect(output).toContain('gemini (default)');
-    expect(output).toContain('Coming in v1.1');
+    expect(output).toContain('API key configured');
+    for (const provider of ['openai', 'claude', 'ollama']) {
+      expect(output, `${provider} listed`).toContain(provider);
+    }
     expect(output).toContain('Current provider: gemini');
+  });
+
+  it('says which providers still need a key, and that ollama needs none', async () => {
+    await providersCommand(repo);
+    const output = stdout.join('\n');
+
+    expect(output).toContain('Ready — no API key needed');
+    expect(output).toContain('COMMILOT_OPENAI_KEY');
+    expect(output).not.toContain('Coming in');
   });
 });
 

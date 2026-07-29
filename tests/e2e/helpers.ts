@@ -5,7 +5,12 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execa } from 'execa';
-import { geminiEnvelope } from '../fixtures/responses.js';
+import {
+  claudeEnvelope,
+  geminiEnvelope,
+  ollamaEnvelope,
+  openAiEnvelope,
+} from '../fixtures/responses.js';
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const CLI = join(REPO_ROOT, 'dist', 'index.js');
@@ -28,12 +33,41 @@ function newestMtime(dir: string): number {
   return newest;
 }
 
-/** A stand-in for the Gemini API that replays queued responses. */
+/** Which provider a request belongs to, recognised from the URL it hit. */
+export type ProviderKind = 'gemini' | 'openai' | 'claude' | 'ollama';
+
+export interface RecordedRequest {
+  provider: ProviderKind;
+  url: string;
+  headers: Record<string, string | string[] | undefined>;
+  body: unknown;
+}
+
+/** Envelope each backend wraps the model's answer in. */
+const ENVELOPES: Record<ProviderKind, (text: string) => unknown> = {
+  gemini: geminiEnvelope,
+  openai: openAiEnvelope,
+  claude: claudeEnvelope,
+  ollama: ollamaEnvelope,
+};
+
+function providerFromUrl(url: string): ProviderKind {
+  if (url.includes('/chat/completions')) return 'openai';
+  if (url.includes('/messages')) return 'claude';
+  if (url.includes('/api/chat')) return 'ollama';
+  return 'gemini';
+}
+
+/**
+ * A stand-in for every supported backend. The provider is recognised from the
+ * URL the CLI called, and the queued answer is wrapped in that provider's own
+ * response envelope — so the routing is part of what the test exercises.
+ */
 export class FakeProviderServer {
   private server?: Server;
-  private queue: Array<{ status: number; body: unknown }> = [];
-  /** Every request body the CLI sent, for prompt assertions. */
-  readonly requests: unknown[] = [];
+  private queue: Array<{ status: number; body?: unknown; text?: string }> = [];
+  /** Every request the CLI sent, for prompt and routing assertions. */
+  readonly requests: RecordedRequest[] = [];
 
   async start(): Promise<string> {
     this.server = createServer((req, res) => {
@@ -42,23 +76,37 @@ export class FakeProviderServer {
         raw += chunk;
       });
       req.on('end', () => {
-        this.requests.push(raw ? JSON.parse(raw) : null);
+        const url = req.url ?? '';
+        const provider = providerFromUrl(url);
+        this.requests.push({
+          provider,
+          url,
+          headers: req.headers,
+          body: raw ? JSON.parse(raw) : null,
+        });
+
         const next = this.queue.shift() ?? { status: 500, body: { error: 'no response queued' } };
+        const body = next.text !== undefined ? ENVELOPES[provider](next.text) : next.body;
         res.writeHead(next.status, { 'content-type': 'application/json' });
-        res.end(JSON.stringify(next.body));
+        res.end(JSON.stringify(body));
       });
     });
 
     await new Promise<void>((done) => this.server?.listen(0, '127.0.0.1', done));
     const address = this.server?.address();
     if (!address || typeof address === 'string') throw new Error('server did not bind a port');
-    return `http://127.0.0.1:${address.port}/v1`;
+    return `http://127.0.0.1:${address.port}`;
   }
 
-  /** Queue a successful model answer. */
+  /** Queue a model answer, wrapped for whichever provider asks for it. */
   reply(text: string): this {
-    this.queue.push({ status: 200, body: geminiEnvelope(text) });
+    this.queue.push({ status: 200, text });
     return this;
+  }
+
+  /** Bodies of the requests received, oldest first. */
+  get bodies(): unknown[] {
+    return this.requests.map((request) => request.body);
   }
 
   /** Queue a raw HTTP failure. */
@@ -100,13 +148,50 @@ export async function runCli(
   const result = await execa('node', [CLI, ...args], {
     cwd,
     reject: false,
-    env: { ...process.env, COMMILOT_GEMINI_KEY: '', FORCE_COLOR: '0', ...env },
+    env: {
+      ...process.env,
+      // A developer's real keys must not influence the tests.
+      COMMILOT_GEMINI_KEY: '',
+      COMMILOT_OPENAI_KEY: '',
+      COMMILOT_CLAUDE_KEY: '',
+      FORCE_COLOR: '0',
+      ...env,
+    },
   });
   return {
     exitCode: result.exitCode ?? 0,
     stdout: String(result.stdout ?? ''),
     stderr: String(result.stderr ?? ''),
   };
+}
+
+/**
+ * Config pointing every backend at the fake server. Each provider keeps its
+ * own base URL shape: Gemini appends `/v1beta/models/...`, OpenAI
+ * `/chat/completions`, Claude `/messages`, Ollama `/api/chat`.
+ */
+export function testConfig(baseUrl: string, extraConfig = ''): string {
+  return `provider: gemini
+gemini:
+  apiKey: "test-key"
+  model: gemini-2.0-flash
+  baseUrl: "${baseUrl}/v1beta"
+  maxRetries: 0
+openai:
+  apiKey: "sk-test"
+  model: gpt-4o-mini
+  baseUrl: "${baseUrl}/v1"
+  maxRetries: 0
+claude:
+  apiKey: "sk-ant-test"
+  model: claude-sonnet-5
+  baseUrl: "${baseUrl}/v1"
+  maxRetries: 0
+ollama:
+  model: llama3.1
+  baseUrl: "${baseUrl}"
+  maxRetries: 0
+${extraConfig}`;
 }
 
 /** Create a throwaway git repository with a Commilot config pointing at `baseUrl`. */
@@ -124,16 +209,7 @@ export function createTestRepo(baseUrl: string, extraConfig = ''): TestRepo {
     writeFileSync(join(dir, name), content, 'utf8');
   };
 
-  write(
-    '.commitHelper.yml',
-    `provider: gemini
-gemini:
-  apiKey: "test-key"
-  model: gemini-2.0-flash
-  baseUrl: "${baseUrl}"
-  maxRetries: 0
-${extraConfig}`,
-  );
+  write('.commitHelper.yml', testConfig(baseUrl, extraConfig));
 
   // A first commit so HEAD exists, mirroring a real repository. The config is
   // gitignored exactly as `commilot init` would leave it.

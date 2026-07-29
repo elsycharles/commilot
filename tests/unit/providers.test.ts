@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { parseRawDiff } from '../../src/core/DiffValidator.js';
 import { ClaudeProvider } from '../../src/providers/ClaudeProvider.js';
 import { GeminiProvider } from '../../src/providers/GeminiProvider.js';
+import { OllamaProvider } from '../../src/providers/OllamaProvider.js';
 import { OpenAIProvider } from '../../src/providers/OpenAIProvider.js';
 import { configSchema, formatConfigSchema } from '../../src/types/config.js';
 import { ApiAuthError, ApiRateLimitError, MalformedResponseError } from '../../src/utils/errors.js';
@@ -12,6 +13,7 @@ import {
   SPLIT_JSON,
   claudeEnvelope,
   geminiEnvelope,
+  ollamaEnvelope,
   openAiEnvelope,
 } from '../fixtures/responses.js';
 
@@ -152,7 +154,82 @@ describe('GeminiProvider', () => {
   });
 });
 
-describe('planned providers implement the same interface', () => {
+describe('OllamaProvider', () => {
+  const makeOllama = (overrides: Partial<typeof settings> = {}) =>
+    new OllamaProvider({
+      settings: { ...fastSettings, model: 'llama3.1', ...overrides },
+      apiKey: '',
+    });
+
+  it('posts to the local chat endpoint in JSON mode', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(GENERATE_JSON)));
+
+    const group = await makeOllama().generateCommitMessage(diff, format);
+
+    expect(group).toMatchObject({ type: 'feat', scope: 'auth' });
+    const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe('http://127.0.0.1:11434/api/chat');
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe('llama3.1');
+    expect(body.format).toBe('json');
+    expect(body.stream).toBe(false);
+    expect(body.messages[0].role).toBe('system');
+  });
+
+  it('sends no credentials at all', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(GENERATE_JSON)));
+    await makeOllama().generateCommitMessage(diff, format);
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const headers = init.headers as Record<string, string>;
+    expect(headers.authorization).toBeUndefined();
+    expect(headers['x-api-key']).toBeUndefined();
+  });
+
+  it('is configured without an api key', () => {
+    expect(makeOllama().isConfigured()).toBe(true);
+    expect(makeOllama().getProviderName()).toBe('Ollama (local)');
+  });
+
+  it('honours a custom baseUrl', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(GENERATE_JSON)));
+    await makeOllama({ baseUrl: 'http://192.168.1.10:11434' }).generateCommitMessage(diff, format);
+    expect(fetchMock.mock.calls[0]?.[0]).toBe('http://192.168.1.10:11434/api/chat');
+  });
+
+  it('explains how to install a missing model on 404', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ error: 'model not found' }, 404));
+
+    await expect(makeOllama().generateCommitMessage(diff, format)).rejects.toThrow(
+      /ollama pull llama3\.1/,
+    );
+  });
+
+  it('surfaces an error field returned with a 200', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse({ error: 'model is loading' }));
+    await expect(makeOllama().generateCommitMessage(diff, format)).rejects.toBeInstanceOf(
+      MalformedResponseError,
+    );
+  });
+
+  it('tells the user Ollama is not running when the connection is refused', async () => {
+    fetchMock.mockImplementation(async () => {
+      throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } });
+    });
+
+    await expect(makeOllama({ maxRetries: 0 }).generateCommitMessage(diff, format)).rejects.toThrow(
+      /ollama serve/,
+    );
+  });
+
+  it('splits a diff like any other provider', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(SPLIT_JSON)));
+    const plan = await makeOllama().generateCommitPlan(multiDiff, format, { maxCommits: 5 });
+    expect(plan).toHaveLength(3);
+  });
+});
+
+describe('every provider implements the same interface', () => {
   it('OpenAIProvider talks to chat/completions', async () => {
     fetchMock.mockImplementation(async () => jsonResponse(openAiEnvelope(GENERATE_JSON)));
     const provider = new OpenAIProvider({

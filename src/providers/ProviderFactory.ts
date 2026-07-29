@@ -10,13 +10,17 @@ import { UnsupportedProviderError } from '../utils/errors.js';
 import type { AIProvider } from './AIProvider.js';
 import { ClaudeProvider } from './ClaudeProvider.js';
 import { GeminiProvider } from './GeminiProvider.js';
+import { OllamaProvider } from './OllamaProvider.js';
 import { OpenAIProvider } from './OpenAIProvider.js';
 
 interface ProviderDescriptor {
   displayName: string;
+  /** Release the provider shipped in. */
   version: string;
   /** Providers not yet released are rejected by the factory. */
   available: boolean;
+  /** Local backends need no credentials. */
+  requiresApiKey: boolean;
   create: (ctx: { settings: ProviderBlock; apiKey: string }) => AIProvider;
 }
 
@@ -27,27 +31,30 @@ const REGISTRY: Record<ProviderName, ProviderDescriptor> = {
     displayName: 'Google Gemini',
     version: 'v1.0',
     available: true,
+    requiresApiKey: true,
     create: (ctx) => new GeminiProvider(ctx),
   },
   openai: {
     displayName: 'OpenAI ChatGPT',
     version: 'v1.1',
-    available: false,
+    available: true,
+    requiresApiKey: true,
     create: (ctx) => new OpenAIProvider(ctx),
   },
   claude: {
     displayName: 'Anthropic Claude',
     version: 'v1.2',
-    available: false,
+    available: true,
+    requiresApiKey: true,
     create: (ctx) => new ClaudeProvider(ctx),
   },
   ollama: {
     displayName: 'Ollama (local)',
     version: 'v2.0',
-    available: false,
-    create: () => {
-      throw new UnsupportedProviderError('ollama', availableNames(), plannedNames());
-    },
+    available: true,
+    // Runs on the developer's own machine: nothing to authenticate against.
+    requiresApiKey: false,
+    create: (ctx) => new OllamaProvider(ctx),
   },
 };
 
@@ -74,9 +81,14 @@ export class ProviderFactory {
     if (!isKnownProvider(name) || !REGISTRY[name].available) {
       throw new UnsupportedProviderError(name, availableNames(), plannedNames());
     }
+    const descriptor = REGISTRY[name];
     const settings = config[name];
-    const apiKey = resolveApiKey(name, config as unknown as Record<string, unknown>);
-    return REGISTRY[name].create({ settings, apiKey });
+    // A local backend has nothing to authenticate against, so demanding a key
+    // would make it unusable.
+    const apiKey = descriptor.requiresApiKey
+      ? resolveApiKey(name, config as unknown as Record<string, unknown>)
+      : '';
+    return descriptor.create({ settings, apiKey });
   }
 
   /** Everything `commilot providers` needs to render its table. */
@@ -89,8 +101,11 @@ export class ProviderFactory {
         status: descriptor.available ? ('available' as const) : ('planned' as const),
         version: descriptor.version,
         model: config[name].model,
+        requiresApiKey: descriptor.requiresApiKey,
         configured:
-          descriptor.available && hasApiKey(name, config as unknown as Record<string, unknown>),
+          descriptor.available &&
+          (!descriptor.requiresApiKey ||
+            hasApiKey(name, config as unknown as Record<string, unknown>)),
         isDefault: name === DEFAULT_PROVIDER,
         isCurrent: name === config.provider,
       };
