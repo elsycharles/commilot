@@ -79,7 +79,19 @@ export COMMILOT_GEMINI_KEY=...
 commilot split
 ```
 
-## Pull requests
+## Branches and pull requests
 
-Run `npm run lint && npm run typecheck && npm test` before opening one, and describe the user-facing
-change. CI runs the same on Linux, macOS and Windows against Node 20 and 22.
+| Branch                          | Role                                                                              |
+| ------------------------------- | --------------------------------------------------------------------------------- |
+| `main`                          | Released code. Protected: pull request + maintainer approval + green CI.          |
+| `dev`                           | Integration branch. Protected: pull request + green CI. **Target your PRs here.** |
+| `feature/…`, `bug/…`, `chore/…` | Your work, branched from `dev`.                                                   |
+
+Neither `main` nor `dev` accepts a direct push, and neither can be force-pushed or deleted.
+External contributors work from a fork; the flow is the same.
+
+Run `npm run lint && npm run typecheck && npm test` before opening a PR, and describe the
+user-facing change. CI runs the same on Linux, macOS and Windows against Node 20 and 22, and every
+job must be green before a PR can be merged.
+
+Commits follow `type(scope) - description` (see above). Squash or merge, either is accepted.
