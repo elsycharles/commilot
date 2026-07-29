@@ -33,8 +33,10 @@ export function renderBox(lines: string[], opts: BoxOptions = {}): string {
   );
   const inner = content + 2;
 
+  // A titled top is `┌`, `── `, the title, a space, the filler and `┐`: six
+  // fixed columns, so the filler must be `inner - title - 4` to match the body.
   const top = title
-    ? `┌── ${chalk.bold(title)} ${'─'.repeat(Math.max(0, inner - visibleWidth(title) - 5))}┐`
+    ? `┌── ${chalk.bold(title)} ${'─'.repeat(Math.max(0, inner - visibleWidth(title) - 4))}┐`
     : `┌${'─'.repeat(inner)}┐`;
   const bottom = `└${'─'.repeat(inner)}┘`;
 
