@@ -37,7 +37,13 @@ export const configSchema = z.object({
   gemini: providerBlockSchema.extend({ model: z.string().default('gemini-2.0-flash') }).default({}),
   openai: providerBlockSchema.extend({ model: z.string().default('gpt-4o-mini') }).default({}),
   claude: providerBlockSchema.extend({ model: z.string().default('claude-sonnet-5') }).default({}),
-  ollama: providerBlockSchema.extend({ model: z.string().default('llama3.1') }).default({}),
+  ollama: providerBlockSchema
+    .extend({
+      model: z.string().default('llama3.1'),
+      // Local inference on CPU is far slower than a hosted API.
+      timeoutMs: z.number().int().positive().default(120_000),
+    })
+    .default({}),
   format: formatConfigSchema.default({}),
   behaviour: behaviourConfigSchema.default({}),
 });
@@ -65,6 +71,8 @@ export interface ProviderInfo {
   /** Version in which the provider ships / is planned to ship. */
   version: string;
   model: string;
+  /** False for local backends, which need no credentials. */
+  requiresApiKey: boolean;
   configured: boolean;
   isDefault: boolean;
   isCurrent: boolean;
