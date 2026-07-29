@@ -1,8 +1,9 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { simpleGit } from 'simple-git';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { parseRawDiff } from '../../src/core/DiffValidator.js';
 import { GitService } from '../../src/core/GitService.js';
 import { GitOperationError, NotGitRepoError } from '../../src/utils/errors.js';
 
@@ -77,6 +78,57 @@ describe('diff and status', () => {
     expect(diff).toContain('new.txt');
     expect(diff).toContain('+brand new');
     expect(await git.getUntrackedFiles()).toEqual(['new.txt']);
+  });
+
+  it('produces a diff the parser understands, on every platform', async () => {
+    write('one.txt', 'alpha\nbeta\n');
+    mkdirSync(join(repo, 'nested'), { recursive: true });
+    writeFileSync(join(repo, 'nested', 'two.txt'), 'gamma\n', 'utf8');
+
+    const parsed = parseRawDiff(await git.getUntrackedDiff());
+
+    expect(parsed.files.map((file) => file.path).sort()).toEqual(['nested/two.txt', 'one.txt']);
+    expect(parsed.files.every((file) => file.status === 'added')).toBe(true);
+    expect(parsed.totalAdditions).toBe(3);
+    expect(parsed.files.every((file) => file.binary)).toBe(false);
+  });
+
+  it('handles a file with no trailing newline', async () => {
+    write('no-newline.txt', 'last line without newline');
+    const parsed = parseRawDiff(await git.getUntrackedDiff());
+    expect(parsed.files[0]?.additions).toBe(1);
+  });
+
+  it('normalises CRLF line endings', async () => {
+    write('crlf.txt', 'first\r\nsecond\r\n');
+    const diff = await git.getUntrackedDiff();
+    expect(diff).toContain('+first\n');
+    expect(diff).not.toContain('\r');
+    expect(parseRawDiff(diff).files[0]?.additions).toBe(2);
+  });
+
+  it('reports an untracked binary file as binary', async () => {
+    writeFileSync(join(repo, 'logo.png'), Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x00, 0x01]));
+    const diff = await git.getUntrackedDiff();
+    expect(diff).toContain('Binary files /dev/null and b/logo.png differ');
+    expect(parseRawDiff(diff).files[0]?.binary).toBe(true);
+  });
+
+  it('emits a header with no hunk for an empty file', async () => {
+    write('empty.txt', '');
+    const diff = await git.getUntrackedDiff();
+    expect(diff).toContain('diff --git a/empty.txt b/empty.txt');
+    expect(diff).not.toContain('@@');
+  });
+
+  it('returns nothing when there are no untracked files', async () => {
+    expect(await git.getUntrackedDiff()).toBe('');
+  });
+
+  it('marks the mode of an executable file', async () => {
+    write('script.sh', '#!/bin/sh\necho hi\n');
+    chmodSync(join(repo, 'script.sh'), 0o755);
+    expect(await git.getUntrackedDiff()).toContain('new file mode 100755');
   });
 
   it('reports structured status entries', async () => {
