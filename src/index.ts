@@ -3,7 +3,11 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { configGetCommand, configListCommand, configSetCommand } from './commands/config.js';
 import { generateCommand } from './commands/generate.js';
+import { hookInstallCommand, hookUninstallCommand } from './commands/hook.js';
+import { initCommand } from './commands/init.js';
+import { providersCommand } from './commands/providers.js';
 import { splitCommand } from './commands/split.js';
 import { CommilotError, UserCancelError } from './utils/errors.js';
 import { logger } from './utils/logger.js';
@@ -78,6 +82,72 @@ export function buildCli(): Command {
       await splitCommand(opts);
     });
 
+  program
+    .command('init')
+    .description('Create a .commitHelper.yml configuration file')
+    .option('--global', 'Write to ~/.commitHelper.yml instead of the current directory')
+    .option('--force', 'Overwrite an existing configuration file')
+    .option('--no-gitignore', 'Do not add .commitHelper.yml to .gitignore')
+    .action(async (opts, command: Command) => {
+      applyGlobalFlags(command);
+      await initCommand(opts);
+    });
+
+  const config = program.command('config').description('View or change configuration values');
+
+  config
+    .command('get <key>')
+    .description('Print the effective value of a config key')
+    .action(async (key: string, _opts, command: Command) => {
+      applyGlobalFlags(command);
+      await configGetCommand(key);
+    });
+
+  config
+    .command('set <key> <value>')
+    .description('Set a config value in the project or global config file')
+    .option('--global', 'Write to ~/.commitHelper.yml')
+    .action(async (key: string, value: string, opts, command: Command) => {
+      applyGlobalFlags(command);
+      await configSetCommand(key, value, opts);
+    });
+
+  config
+    .command('list')
+    .alias('ls')
+    .description('Print the full effective configuration')
+    .action(async (_opts, command: Command) => {
+      applyGlobalFlags(command);
+      await configListCommand();
+    });
+
+  const hook = program.command('hook').description('Manage the prepare-commit-msg git hook');
+
+  hook
+    .command('install')
+    .description('Install the prepare-commit-msg hook')
+    .option('--force', 'Replace an existing hook that Commilot did not create')
+    .action(async (opts, command: Command) => {
+      applyGlobalFlags(command);
+      await hookInstallCommand(opts);
+    });
+
+  hook
+    .command('uninstall')
+    .description('Remove the Commilot git hook')
+    .action(async (_opts, command: Command) => {
+      applyGlobalFlags(command);
+      await hookUninstallCommand();
+    });
+
+  program
+    .command('providers')
+    .description('List available AI providers and their status')
+    .action(async (_opts, command: Command) => {
+      applyGlobalFlags(command);
+      await providersCommand();
+    });
+
   return program;
 }
 
@@ -125,6 +195,8 @@ if (process.argv[1] && import.meta.url.startsWith('file:')) {
 
 export { generateCommand } from './commands/generate.js';
 export { splitCommand } from './commands/split.js';
+export { initCommand } from './commands/init.js';
+export { providersCommand } from './commands/providers.js';
 export * from './types/commit.js';
 export * from './types/config.js';
 export * from './types/diff.js';
