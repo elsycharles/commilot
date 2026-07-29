@@ -1,0 +1,8 @@
+# Keep LF in the working copy on every platform. The test fixtures embed raw
+# unified diffs, and a CRLF checkout would change what the parser sees.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary

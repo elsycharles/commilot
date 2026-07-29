@@ -1,0 +1,44 @@
+# Commilot's own configuration — Commilot uses itself for its commits.
+# The API key deliberately lives in COMMILOT_GEMINI_KEY, never in this file.
+
+provider: gemini
+
+gemini:
+  apiKey: ""
+  model: gemini-2.0-flash
+  temperature: 0.3
+
+format:
+  template: "{type}({scope}) - {description}"
+  types:
+    - dev
+    - feat
+    - bug
+  scopes:
+    - cli
+    - config
+    - git
+    - diff
+    - provider
+    - prompt
+    - parser
+    - ui
+    - hook
+    - tests
+    - docs
+    - build
+  descriptionMaxLength: 72
+  language: en
+
+behaviour:
+  autoStage: false
+  maxDiffLines: 5000
+  excludePatterns:
+    - "package-lock.json"
+    - "yarn.lock"
+    - "*.min.js"
+    - "*.min.css"
+    - "dist/**"
+    - "coverage/**"
+  splitMaxCommits: 10
+  confirmBeforeCommit: true

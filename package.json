@@ -1,0 +1,76 @@
+{
+  "name": "commilot",
+  "version": "1.0.0",
+  "description": "AI-powered commit message generator & splitter — commit + copilot",
+  "keywords": [
+    "git",
+    "commit",
+    "ai",
+    "gemini",
+    "cli",
+    "conventional-commits",
+    "commit-message"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "bin": {
+    "commilot": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:e2e": "vitest run tests/e2e",
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage",
+    "lint": "eslint src tests",
+    "format": "prettier --write \"{src,tests}/**/*.ts\"",
+    "docs": "typedoc",
+    "prepublishOnly": "npm run build"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "commander": "^12.1.0",
+    "inquirer": "^9.3.7",
+    "js-yaml": "^4.1.0",
+    "minimatch": "^10.0.1",
+    "ora": "^8.1.0",
+    "parse-diff": "^0.11.1",
+    "simple-git": "^3.27.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@types/inquirer": "^9.0.7",
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20.16.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^9.1.2",
+    "execa": "^9.4.0",
+    "prettier": "^3.9.6",
+    "tsup": "^8.3.0",
+    "typedoc": "^0.26.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.65.0",
+    "vitest": "^2.1.0"
+  }
+}
