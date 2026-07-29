@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
 import { Command } from 'commander';
 import { generateCommand } from './commands/generate.js';
+import { splitCommand } from './commands/split.js';
 import { CommilotError, UserCancelError } from './utils/errors.js';
 import { logger } from './utils/logger.js';
 
@@ -25,6 +26,14 @@ function applyGlobalFlags(command: Command): void {
   const opts = command.optsWithGlobals<{ verbose?: boolean; quiet?: boolean }>();
   if (opts.quiet) logger.setLevel('error');
   else if (opts.verbose) logger.setVerbose(true);
+}
+
+function parseMaxCommits(value: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed) || parsed < 1) {
+    throw new CommilotError('--max-commits must be a positive integer.');
+  }
+  return parsed;
 }
 
 export function buildCli(): Command {
@@ -53,6 +62,20 @@ export function buildCli(): Command {
     .action(async (opts: Parameters<typeof generateCommand>[0], command: Command) => {
       applyGlobalFlags(command);
       await generateCommand(opts);
+    });
+
+  program
+    .command('split')
+    .description('Split all changes into several logically grouped commits')
+    .option('--staged', 'Only split the staged changes')
+    .option('--all', 'Split staged, unstaged and untracked changes (default)')
+    .option('--dry-run', 'Preview the commit plan without committing')
+    .option('--max-commits <n>', 'Maximum number of commits to propose', parseMaxCommits)
+    .option('--provider <name>', 'Override the configured AI provider')
+    .option('-y, --yes', 'Accept the whole commit plan without the interactive review')
+    .action(async (opts, command: Command) => {
+      applyGlobalFlags(command);
+      await splitCommand(opts);
     });
 
   return program;
@@ -101,6 +124,7 @@ if (process.argv[1] && import.meta.url.startsWith('file:')) {
 }
 
 export { generateCommand } from './commands/generate.js';
+export { splitCommand } from './commands/split.js';
 export * from './types/commit.js';
 export * from './types/config.js';
 export * from './types/diff.js';
