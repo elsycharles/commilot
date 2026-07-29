@@ -148,13 +148,25 @@ so it works from any subdirectory. Nested keys merge; **lists replace**.
 
 ```yaml
 # AI Provider — which LLM to use for commit generation
-# Available: gemini (default) · Coming soon: openai, claude
+# One of: gemini (default), openai, claude, ollama
 provider: gemini
 
 gemini:
   apiKey: '' # Prefer COMMILOT_GEMINI_KEY instead
   model: gemini-2.0-flash
   temperature: 0.3
+
+openai:
+  apiKey: '' # or COMMILOT_OPENAI_KEY
+  model: gpt-4o-mini
+
+claude:
+  apiKey: '' # or COMMILOT_CLAUDE_KEY
+  model: claude-sonnet-5
+
+ollama: # local — no API key, nothing leaves your machine
+  model: llama3.1
+  baseUrl: 'http://127.0.0.1:11434'
 
 format:
   template: '{type}({scope}) - {description}'
@@ -177,25 +189,32 @@ behaviour:
 
 ### Reference
 
-| Key                             | Type     | Default                           | Notes                                                             |
-| ------------------------------- | -------- | --------------------------------- | ----------------------------------------------------------------- |
-| `provider`                      | string   | `gemini`                          | `gemini` today; `openai` (v1.1), `claude` (v1.2), `ollama` (v2.0) |
-| `gemini.apiKey`                 | string   | —                                 | Or `COMMILOT_GEMINI_KEY`                                          |
-| `gemini.model`                  | string   | `gemini-2.0-flash`                | Any Gemini model id                                               |
-| `gemini.temperature`            | 0–1      | `0.3`                             | Lower = more deterministic                                        |
-| `gemini.timeoutMs`              | number   | `30000`                           | Per request                                                       |
-| `gemini.maxRetries`             | number   | `3`                               | Backoff 1s / 3s / 9s on 429, 5xx and timeouts                     |
-| `gemini.baseUrl`                | url      | Google endpoint                   | For proxies                                                       |
-| `format.template`               | string   | `{type}({scope}) - {description}` | `{type}`, `{scope}`, `{description}`                              |
-| `format.types`                  | string[] | `[dev, feat, bug]`                | The AI is constrained to these                                    |
-| `format.scopes`                 | string[] | `[]`                              | Empty = the AI infers a scope                                     |
-| `format.descriptionMaxLength`   | number   | `72`                              | Longer answers are truncated at a word boundary                   |
-| `format.language`               | string   | `en`                              | ISO 639-1                                                         |
-| `behaviour.autoStage`           | bool     | `false`                           |                                                                   |
-| `behaviour.maxDiffLines`        | number   | `5000`                            | Above this the run is rejected                                    |
-| `behaviour.excludePatterns`     | string[] | lockfiles, minified               | Globs, matched at any depth                                       |
-| `behaviour.splitMaxCommits`     | number   | `10`                              |                                                                   |
-| `behaviour.confirmBeforeCommit` | bool     | `true`                            | Set `false` to skip the final y/n                                 |
+| Key                  | Type   | Default                  | Notes                                                     |
+| -------------------- | ------ | ------------------------ | --------------------------------------------------------- |
+| `provider`           | string | `gemini`                 | `gemini`, `openai`, `claude` or `ollama`                  |
+| `gemini.apiKey`      | string | —                        | Or `COMMILOT_GEMINI_KEY`                                  |
+| `gemini.model`       | string | `gemini-2.0-flash`       | Any Gemini model id                                       |
+| `gemini.temperature` | 0–1    | `0.3`                    | Lower = more deterministic                                |
+| `gemini.timeoutMs`   | number | `30000`                  | Per request                                               |
+| `gemini.maxRetries`  | number | `3`                      | Backoff 1s / 3s / 9s on 429, 5xx and timeouts             |
+| `gemini.baseUrl`     | url    | Google endpoint          | For proxies                                               |
+| `openai.model`       | string | `gpt-4o-mini`            | Any chat-completions model                                |
+| `claude.model`       | string | `claude-sonnet-5`        | Any Messages API model                                    |
+| `ollama.model`       | string | `llama3.1`               | Must be pulled first: `ollama pull <model>`               |
+| `ollama.baseUrl`     | url    | `http://127.0.0.1:11434` | Where your Ollama server listens                          |
+| `ollama.timeoutMs`   | number | `120000`                 | Higher than the hosted default: local inference is slower |
+
+Every provider block accepts the same keys (`apiKey`, `model`, `temperature`, `timeoutMs`, `maxRetries`, `baseUrl`); only the defaults differ.
+| `format.template` | string | `{type}({scope}) - {description}` | `{type}`, `{scope}`, `{description}` |
+| `format.types` | string[] | `[dev, feat, bug]` | The AI is constrained to these |
+| `format.scopes` | string[] | `[]` | Empty = the AI infers a scope |
+| `format.descriptionMaxLength` | number | `72` | Longer answers are truncated at a word boundary |
+| `format.language` | string | `en` | ISO 639-1 |
+| `behaviour.autoStage` | bool | `false` | |
+| `behaviour.maxDiffLines` | number | `5000` | Above this the run is rejected |
+| `behaviour.excludePatterns` | string[] | lockfiles, minified | Globs, matched at any depth |
+| `behaviour.splitMaxCommits` | number | `10` | |
+| `behaviour.confirmBeforeCommit` | bool | `true` | Set `false` to skip the final y/n |
 
 ### API key
 
@@ -251,16 +270,39 @@ config → provider → git diff → validate → prompt → AI → parse/repair
 
 ### Providers
 
-| Version | Provider                           | Status              |
-| ------- | ---------------------------------- | ------------------- |
-| v1.0    | Google Gemini (`gemini-2.0-flash`) | ✅ shipped, default |
-| v1.1    | OpenAI ChatGPT (`gpt-4o-mini`)     | 🔜 planned          |
-| v1.2    | Anthropic Claude                   | 🔜 planned          |
-| v2.0    | Ollama (local)                     | 🔜 planned          |
+| Provider | Default model      | API key  | Notes                                       |
+| -------- | ------------------ | -------- | ------------------------------------------- |
+| `gemini` | `gemini-2.0-flash` | required | Default. Generous free tier                 |
+| `openai` | `gpt-4o-mini`      | required | Chat Completions, JSON mode                 |
+| `claude` | `claude-sonnet-5`  | required | Messages API, answer prefilled to bare JSON |
+| `ollama` | `llama3.1`         | **none** | Runs locally — no code leaves your machine  |
 
-Adding one means implementing a single interface (`generateCommitMessage`, `generateCommitPlan`,
+Switching is one line:
+
+```bash
+commilot config set provider ollama     # persistent
+commilot generate --provider claude     # just this run
+```
+
+Each provider keeps its own block, so several can be configured at once and you swap freely. The
+prompt is identical for all four — only the transport differs.
+
+Adding another means implementing a single interface (`generateCommitMessage`, `generateCommitPlan`,
 `validateResponse`, `getProviderName`, `isConfigured`) — the pipeline and the prompts stay the same.
-Users switch with one config line.
+
+### Running fully offline with Ollama
+
+```bash
+ollama serve                 # start the local server
+ollama pull llama3.1         # once per model
+commilot config set provider ollama
+commilot split --all
+```
+
+No API key, no network call, **no code sent to a third party** — the answer to the confidentiality
+question below. Local models are slower and follow the JSON format less reliably than hosted ones,
+which is what the response-repair layer above is for. Commilot tells you what to do if the server is
+not running or the model is not installed.
 
 ---
 
