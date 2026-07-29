@@ -128,7 +128,17 @@ describe('diff and status', () => {
   it('marks the mode of an executable file', async () => {
     write('script.sh', '#!/bin/sh\necho hi\n');
     chmodSync(join(repo, 'script.sh'), 0o755);
-    expect(await git.getUntrackedDiff()).toContain('new file mode 100755');
+
+    // Windows has no execute bit, so chmod is a no-op there and git itself
+    // reports 100644 for every file.
+    const expected = process.platform === 'win32' ? '100644' : '100755';
+    expect(await git.getUntrackedDiff()).toContain(`new file mode ${expected}`);
+  });
+
+  it('marks a regular file as non-executable', async () => {
+    write('plain.txt', 'text\n');
+    chmodSync(join(repo, 'plain.txt'), 0o644);
+    expect(await git.getUntrackedDiff()).toContain('new file mode 100644');
   });
 
   it('reports structured status entries', async () => {
