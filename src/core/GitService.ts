@@ -1,3 +1,5 @@
+import { readFileSync, statSync } from 'node:fs';
+import { resolve, sep } from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import type { FileStatus } from '../types/diff.js';
 import { GitOperationError, NotGitRepoError } from '../utils/errors.js';
@@ -52,25 +54,21 @@ export class GitService {
     return this.run(`diff${opts.staged ? ' --staged' : ''}`, () => this.git.diff(args));
   }
 
-  /** Diff of files that are untracked, rendered as an "added file" diff. */
+  /**
+   * Diff of files that are untracked, rendered as an "added file" diff.
+   *
+   * The diff is synthesised in Node rather than shelled out to
+   * `git diff --no-index /dev/null <file>`: `/dev/null` does not exist on
+   * Windows, and `git add --intent-to-add` would mutate the index just to read
+   * a diff. One code path on every platform.
+   */
   async getUntrackedDiff(): Promise<string> {
     const files = await this.getUntrackedFiles();
     if (files.length === 0) return '';
-    const chunks: string[] = [];
-    for (const file of files) {
-      try {
-        // `--no-index` against /dev/null yields a normal unified diff for new
-        // files. git exits 1 because differences were found, which simple-git
-        // surfaces as either a resolved value or an error carrying stdout.
-        const output = await this.git.raw(['diff', '--no-color', '--no-index', '/dev/null', file]);
-        if (output) chunks.push(output);
-      } catch (err) {
-        const output = (err as { stdout?: string }).stdout;
-        if (output) chunks.push(output);
-        else logger.debug(`could not diff untracked file ${file}: ${(err as Error).message}`);
-      }
-    }
-    return chunks.join('');
+    return files
+      .map((file) => renderAddedFileDiff(this.cwd, file))
+      .filter((chunk): chunk is string => Boolean(chunk))
+      .join('');
   }
 
   async getUntrackedFiles(): Promise<string[]> {
@@ -161,4 +159,63 @@ export class GitService {
   get workingDir(): string {
     return this.cwd;
   }
+}
+
+/** Files above this size are reported as binary rather than inlined. */
+const MAX_INLINE_BYTES = 1024 * 1024;
+/** How much of a file to scan for NUL bytes when guessing binary content. */
+const BINARY_SNIFF_BYTES = 8000;
+
+function looksBinary(content: Buffer): boolean {
+  return content.subarray(0, BINARY_SNIFF_BYTES).includes(0);
+}
+
+/**
+ * Render an untracked file as the unified diff git would produce for a newly
+ * added file. Paths always use forward slashes, as git does on every platform.
+ */
+export function renderAddedFileDiff(cwd: string, relativePath: string): string | undefined {
+  const absolute = resolve(cwd, relativePath);
+  const path = relativePath.split(sep).join('/');
+
+  let stats;
+  try {
+    stats = statSync(absolute);
+  } catch {
+    // Vanished between `git status` and here.
+    return undefined;
+  }
+  if (!stats.isFile()) return undefined;
+
+  // git records only whether the file is executable.
+  const mode = stats.mode & 0o111 ? '100755' : '100644';
+  const header = `diff --git a/${path} b/${path}\nnew file mode ${mode}\n`;
+  const binaryBody = `Binary files /dev/null and b/${path} differ\n`;
+
+  if (stats.size > MAX_INLINE_BYTES) {
+    logger.debug(`untracked file ${path} is larger than 1 MB; treated as binary`);
+    return header + binaryBody;
+  }
+
+  let content: Buffer;
+  try {
+    content = readFileSync(absolute);
+  } catch (err) {
+    logger.debug(`could not read untracked file ${path}: ${(err as Error).message}`);
+    return undefined;
+  }
+
+  if (looksBinary(content)) return header + binaryBody;
+  // An empty new file has no hunk, exactly as `git diff` reports it.
+  if (content.length === 0) return header;
+
+  const text = content.toString('utf8');
+  const lines = text.split('\n');
+  const endsWithNewline = lines.at(-1) === '';
+  if (endsWithNewline) lines.pop();
+
+  const body = lines.map((line) => `+${line.endsWith('\r') ? line.slice(0, -1) : line}`).join('\n');
+  const trailer = endsWithNewline ? '\n' : '\n\\ No newline at end of file\n';
+
+  return `${header}--- /dev/null\n+++ b/${path}\n@@ -0,0 +1,${lines.length} @@\n${body}${trailer}`;
 }

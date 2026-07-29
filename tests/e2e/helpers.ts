@@ -14,7 +14,9 @@ export const CLI = join(REPO_ROOT, 'dist', 'index.js');
 export function ensureBuilt(): void {
   const srcNewest = newestMtime(join(REPO_ROOT, 'src'));
   if (existsSync(CLI) && statSync(CLI).mtimeMs >= srcNewest) return;
-  execFileSync('npm', ['run', '--silent', 'build'], { cwd: REPO_ROOT, stdio: 'inherit' });
+  // On Windows the executable is npm.cmd; execFileSync does not resolve it.
+  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+  execFileSync(npm, ['run', '--silent', 'build'], { cwd: REPO_ROOT, stdio: 'inherit' });
 }
 
 function newestMtime(dir: string): number {
