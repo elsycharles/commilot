@@ -48,10 +48,16 @@ tests/
 ## Adding an AI provider
 
 1. Subclass `BaseHttpProvider` (`src/providers/`) and implement `buildRequest` and `extractText`.
-   Retry, backoff, timeouts, error mapping and JSON repair are inherited.
-2. Register it in `REGISTRY` in `ProviderFactory.ts` and flip `available` when it ships.
-3. Add its defaults (model, temperature) to `configSchema` in `src/types/config.ts`.
-4. Add transport tests in `tests/unit/providers.test.ts`.
+   Retry, backoff, timeouts, error mapping and JSON repair are inherited. Override
+   `networkErrorHint()` and `mapHttpError()` when the backend has a failure worth explaining
+   (`OllamaProvider` does both).
+2. Register it in `REGISTRY` in `ProviderFactory.ts`, with `requiresApiKey: false` if it runs
+   locally.
+3. Add its name to `PROVIDER_NAMES` and its defaults (model, temperature, timeouts) to
+   `configSchema` in `src/types/config.ts`.
+4. Add transport tests in `tests/unit/providers.test.ts`, and its response envelope to
+   `tests/fixtures/responses.ts` plus the `ENVELOPES` map in `tests/e2e/helpers.ts` — the fake
+   server then answers it automatically, keyed on the URL the provider calls.
 
 Prompts are deliberately provider-agnostic: they live in `PromptBuilder` and must not be forked per
 provider. If a provider needs different phrasing, that is a bug in the prompt.

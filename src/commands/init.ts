@@ -19,27 +19,33 @@ export const CONFIG_TEMPLATE = `# Commilot Configuration
 # Docs: https://github.com/commilot/commilot#configuration
 
 # AI Provider — which LLM to use for commit generation
-# Available: gemini (default)
-# Coming soon: openai, claude
+# One of: gemini (default), openai, claude, ollama
 provider: gemini
 
 # Provider-specific settings
-# Each provider has its own config block with API key and model
+# Each provider has its own config block with API key and model.
+# Prefer the environment variable to keep the key out of this file:
+#   COMMILOT_GEMINI_KEY, COMMILOT_OPENAI_KEY, COMMILOT_CLAUDE_KEY
 gemini:
-  apiKey: ""                    # Required: your Google Gemini API key
+  apiKey: ""                    # Your Google Gemini API key
   model: gemini-2.0-flash       # Model to use for analysis
   temperature: 0.3              # Lower = more deterministic
 
-# Uncomment when available (v1.1):
 # openai:
 #   apiKey: ""                  # Your OpenAI API key
-#   model: gpt-4o-mini          # Model to use
+#   model: gpt-4o-mini
 #   temperature: 0.3
 
-# Uncomment when available (v1.2):
 # claude:
 #   apiKey: ""                  # Your Anthropic API key
-#   model: claude-sonnet-5      # Model to use
+#   model: claude-sonnet-5
+#   temperature: 0.3
+
+# Runs locally — no API key, and no code leaves your machine.
+# Requires \`ollama serve\` and \`ollama pull <model>\`.
+# ollama:
+#   model: llama3.1
+#   baseUrl: "http://127.0.0.1:11434"
 #   temperature: 0.3
 
 # Commit Format

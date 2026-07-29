@@ -8,6 +8,7 @@ import {
   ApiRequestError,
   ApiTimeoutError,
   MalformedResponseError,
+  ProviderActionableError,
 } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 import type { AIProvider, GenerateOptions, ProviderContext } from './AIProvider.js';
@@ -142,6 +143,20 @@ export abstract class BaseHttpProvider implements AIProvider {
           }
           throw timeout;
         }
+        // A refused connection or a DNS failure surfaces as a plain TypeError
+        // from fetch; on its own it reads as "fetch failed", which tells the
+        // user nothing about what to do.
+        if (isNetworkError(err)) {
+          const unreachable = new ProviderActionableError(
+            this.networkErrorHint(),
+            `${this.getProviderName()}: ${describeCause(err)}`,
+          );
+          if (attempt < maxRetries) {
+            lastError = unreachable;
+            continue;
+          }
+          throw unreachable;
+        }
         throw err;
       } finally {
         clearTimeout(timer);
@@ -156,9 +171,24 @@ export abstract class BaseHttpProvider implements AIProvider {
     if (status === 429) return new ApiRateLimitError(detail);
     return new ApiRequestError(this.getProviderName(), status, detail);
   }
+
+  /** What to tell the user when the endpoint could not be reached at all. */
+  protected networkErrorHint(): string {
+    return `Could not reach the ${this.getProviderName()} API. Check your network connection.`;
+  }
 }
 
 function looksLikeJson(text: string): boolean {
   const stripped = stripFences(text);
   return stripped.startsWith('{') || stripped.startsWith('[');
+}
+
+/** fetch reports transport failures as a TypeError carrying a `cause`. */
+export function isNetworkError(err: unknown): boolean {
+  return err instanceof TypeError && err.message.toLowerCase().includes('fetch');
+}
+
+function describeCause(err: unknown): string {
+  const cause = (err as { cause?: { code?: string; message?: string } }).cause;
+  return cause?.code ?? cause?.message ?? (err as Error).message;
 }

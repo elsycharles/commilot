@@ -44,9 +44,8 @@ export class MissingApiKeyError extends CommilotError {
 
 export class UnsupportedProviderError extends CommilotError {
   constructor(name: string, available: string[], planned: string[]) {
-    super(
-      `Provider '${name}' is not yet supported. Available: ${available.join(', ')}. Coming soon: ${planned.join(', ')}.`,
-    );
+    const upcoming = planned.length > 0 ? ` Coming soon: ${planned.join(', ')}.` : '';
+    super(`Provider '${name}' is not supported. Available: ${available.join(', ')}.${upcoming}`);
   }
 }
 
@@ -75,6 +74,16 @@ export class ApiTimeoutError extends CommilotError {
 export class ApiRequestError extends CommilotError {
   constructor(provider: string, status: number, detail?: string) {
     super(`${provider} API request failed with status ${status}.`, { detail });
+  }
+}
+
+/**
+ * A failure the user can act on directly. The hint *is* the message, because
+ * `detail` is only shown with `--verbose` and would hide the fix.
+ */
+export class ProviderActionableError extends CommilotError {
+  constructor(hint: string, detail?: string) {
+    super(hint, { detail });
   }
 }
 
