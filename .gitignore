@@ -1,0 +1,10 @@
+node_modules/
+dist/
+coverage/
+docs/
+*.log
+.DS_Store
+.env
+
+# Never commit a config that may contain API keys
+.commitHelper.local.yml
