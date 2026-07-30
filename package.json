@@ -52,7 +52,7 @@
     "inquirer": "^14.0.2",
     "js-yaml": "^5.2.2",
     "minimatch": "^10.0.1",
-    "parse-diff": "^0.11.1",
+    "parse-diff": "^0.12.0",
     "simple-git": "^3.27.0",
     "zod": "^4.4.3"
   },
