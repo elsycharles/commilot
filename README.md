@@ -58,7 +58,7 @@ and proposes a separate commit per group — automating what you would otherwise
 npm install -g commilot
 ```
 
-Requires **Node.js 22+** and `git` on your `PATH`. Works on macOS, Linux and Windows.
+Requires **Node.js 20+** and `git` on your `PATH`. Works on macOS, Linux and Windows.
 
 Or run it without installing:
 
