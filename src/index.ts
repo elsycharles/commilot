@@ -84,10 +84,10 @@ export function buildCli(): Command {
 
   program
     .command('init')
-    .description('Create a .commitHelper.yml configuration file')
-    .option('--global', 'Write to ~/.commitHelper.yml instead of the current directory')
+    .description('Create a .commilot.yml configuration file')
+    .option('--global', 'Write to ~/.commilot.yml instead of the current directory')
     .option('--force', 'Overwrite an existing configuration file')
-    .option('--no-gitignore', 'Do not add .commitHelper.yml to .gitignore')
+    .option('--no-gitignore', 'Do not add .commilot.yml to .gitignore')
     .action(async (opts, command: Command) => {
       applyGlobalFlags(command);
       await initCommand(opts);
@@ -106,7 +106,7 @@ export function buildCli(): Command {
   config
     .command('set <key> <value>')
     .description('Set a config value in the project or global config file')
-    .option('--global', 'Write to ~/.commitHelper.yml')
+    .option('--global', 'Write to ~/.commilot.yml')
     .action(async (key: string, value: string, opts, command: Command) => {
       applyGlobalFlags(command);
       await configSetCommand(key, value, opts);

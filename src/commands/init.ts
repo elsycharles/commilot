@@ -10,7 +10,7 @@ import { logger } from '../utils/logger.js';
 export interface InitOptions {
   global?: boolean;
   force?: boolean;
-  /** Add `.commitHelper.yml` to `.gitignore` (default: true, project scope). */
+  /** Add `.commilot.yml` to `.gitignore` (default: true, project scope). */
   gitignore?: boolean;
 }
 
@@ -90,7 +90,7 @@ export function validateTemplate(template: string = CONFIG_TEMPLATE): void {
   }
 }
 
-/** `commilot init` — create a starter `.commitHelper.yml`. */
+/** `commilot init` — create a starter `.commilot.yml`. */
 export async function initCommand(opts: InitOptions, cwd: string = process.cwd()): Promise<void> {
   const scope = opts.global ? 'global' : 'project';
   const path = getConfigPath(scope, cwd);

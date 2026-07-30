@@ -34,7 +34,9 @@ export const behaviourConfigSchema = z.object({
 
 export const configSchema = z.object({
   provider: z.string().default('gemini'),
-  gemini: providerBlockSchema.extend({ model: z.string().default('gemini-2.0-flash') }).prefault({}),
+  gemini: providerBlockSchema
+    .extend({ model: z.string().default('gemini-2.0-flash') })
+    .prefault({}),
   openai: providerBlockSchema.extend({ model: z.string().default('gpt-4o-mini') }).prefault({}),
   claude: providerBlockSchema.extend({ model: z.string().default('claude-sonnet-5') }).prefault({}),
   ollama: providerBlockSchema
