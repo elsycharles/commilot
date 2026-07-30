@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import chalk from 'chalk';
-import yaml from 'js-yaml';
+import { load } from 'js-yaml';
 import { CONFIG_FILENAME, getConfigPath } from '../core/ConfigLoader.js';
 import { configSchema } from '../types/config.js';
 import { ConfigValidationError } from '../utils/errors.js';
@@ -81,7 +81,7 @@ behaviour:
 
 /** Sanity check: the shipped template must satisfy the runtime schema. */
 export function validateTemplate(template: string = CONFIG_TEMPLATE): void {
-  const parsed = yaml.load(template);
+  const parsed = load(template);
   const result = configSchema.safeParse(parsed);
   if (!result.success) {
     throw new ConfigValidationError(

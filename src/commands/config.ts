@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import yaml from 'js-yaml';
+import { dump } from 'js-yaml';
 import {
   coerceConfigValue,
   getByPath,
@@ -33,7 +33,7 @@ function render(value: unknown): string {
   if (value === undefined) return chalk.dim('(unset)');
   if (typeof value === 'string') return value;
   if (Array.isArray(value) || (typeof value === 'object' && value !== null)) {
-    return `\n${yaml.dump(value, { indent: 2 }).trimEnd()}`;
+    return `\n${dump(value, { indent: 2 }).trimEnd()}`;
   }
   return String(value);
 }
@@ -93,5 +93,5 @@ export async function configListCommand(cwd: string = process.cwd()): Promise<vo
   }
   if (sources.project) logger.info(chalk.dim(`# project: ${sources.project}`));
   if (sources.home) logger.info(chalk.dim(`# home:    ${sources.home}`));
-  logger.info(yaml.dump(redacted, { indent: 2 }).trimEnd());
+  logger.info(dump(redacted, { indent: 2 }).trimEnd());
 }
