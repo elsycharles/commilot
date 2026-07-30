@@ -1,7 +1,7 @@
 {
   "name": "commilot",
   "version": "1.1.0",
-  "description": "AI-powered commit message generator & splitter \u2014 commit + copilot",
+  "description": "AI-powered commit message generator & splitter — commit + copilot",
   "keywords": [
     "git",
     "commit",
@@ -52,7 +52,6 @@
     "inquirer": "^9.3.7",
     "js-yaml": "^4.1.0",
     "minimatch": "^10.0.1",
-    "ora": "^8.1.0",
     "parse-diff": "^0.11.1",
     "simple-git": "^3.27.0",
     "zod": "^3.23.8"
@@ -66,6 +65,7 @@
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
     "execa": "^9.4.0",
+    "ora": "^9.4.1",
     "prettier": "^3.9.6",
     "tsup": "^8.5.1",
     "typedoc": "^0.28.20",
