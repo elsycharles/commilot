@@ -18,6 +18,16 @@ updates:
       - dependency-name: typescript
         update-types: [version-update:semver-major]
 
+      # execa 10 requires Node >=22 and dies on Node 20, which engines.node
+      # still supports. Lift together with engines.node.
+      - dependency-name: execa
+        update-types: [version-update:semver-major]
+
+      # @types/node must track the oldest supported Node, not the newest.
+      # Lift together with engines.node.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+
   - package-ecosystem: github-actions
     directory: /
     schedule:
