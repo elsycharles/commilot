@@ -97,7 +97,7 @@ export class ReviewUI {
       this.printProposal(group, diff);
       const { action } = await prompt<{ action: GenerateAction }>([
         {
-          type: 'list',
+          type: 'select',
           name: 'action',
           message: 'What would you like to do?',
           choices: [
@@ -145,7 +145,7 @@ export class ReviewUI {
       const canMerge = index + 1 < working.length;
       const { action } = await prompt<{ action: SplitAction }>([
         {
-          type: 'list',
+          type: 'select',
           name: 'action',
           message: `Review commit ${position}: ${this.message(group)}`,
           choices: [
@@ -206,7 +206,7 @@ export class ReviewUI {
     const typeQuestion =
       this.format.types.length > 0
         ? {
-            type: 'list' as const,
+            type: 'select' as const,
             name: 'type',
             message: 'Type:',
             choices: this.format.types,
@@ -217,7 +217,7 @@ export class ReviewUI {
     const scopeQuestion =
       this.format.scopes.length > 0
         ? {
-            type: 'list' as const,
+            type: 'select' as const,
             name: 'scope',
             message: 'Scope:',
             choices: [...this.format.scopes, new inquirer.Separator(), 'other…'],
