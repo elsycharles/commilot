@@ -50,7 +50,7 @@
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
     "inquirer": "^9.3.7",
-    "js-yaml": "^4.1.0",
+    "js-yaml": "^5.2.2",
     "minimatch": "^10.0.1",
     "parse-diff": "^0.11.1",
     "simple-git": "^3.27.0",
@@ -59,7 +59,6 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@types/inquirer": "^9.0.7",
-    "@types/js-yaml": "^4.0.9",
     "@types/node": "^20.16.0",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
