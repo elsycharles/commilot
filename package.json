@@ -47,7 +47,7 @@
     "prepublishOnly": "npm run build"
   },
   "dependencies": {
-    "chalk": "^5.3.0",
+    "chalk": "^6.0.0",
     "commander": "^12.1.0",
     "inquirer": "^14.0.2",
     "js-yaml": "^5.2.2",
