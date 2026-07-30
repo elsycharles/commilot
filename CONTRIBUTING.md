@@ -79,6 +79,18 @@ export COMMILOT_GEMINI_KEY=...
 commilot split
 ```
 
+## Dependency overrides
+
+`package.json` carries one `overrides` entry:
+
+```json
+"overrides": { "esbuild": "^0.28.1" }
+```
+
+`tsup` still pins `esbuild ^0.27`, which carries a dev-server advisory. Commilot never runs that
+server — tsup only bundles — but pulling the patched line keeps `npm audit` clean. **Remove the
+override once tsup ships with esbuild 0.28+**, and check `npm audit` and `npm run build` after.
+
 ## Branches and pull requests
 
 | Branch                          | Role                                                                              |
