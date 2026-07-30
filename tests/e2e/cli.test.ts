@@ -64,6 +64,50 @@ describe('cli basics', () => {
   });
 });
 
+describe('option parsing', () => {
+  // These reach commander itself rather than our command bodies, so they are
+  // what a major upgrade of it would break first.
+  it('honours a negated flag', async () => {
+    const fresh = createTestRepo(baseUrl);
+    rmSync(join(fresh.dir, '.commitHelper.yml'));
+    rmSync(join(fresh.dir, '.gitignore'));
+    try {
+      await fresh.run(['init', '--no-gitignore']);
+      expect(existsSync(join(fresh.dir, '.gitignore'))).toBe(false);
+
+      rmSync(join(fresh.dir, '.commitHelper.yml'));
+      await fresh.run(['init']);
+      expect(existsSync(join(fresh.dir, '.gitignore'))).toBe(true);
+    } finally {
+      fresh.cleanup();
+    }
+  });
+
+  it('applies a global flag declared before the subcommand', async () => {
+    const verbose = await repo.run(['--verbose', 'config', 'get', 'provider']);
+    expect(verbose.stderr).toContain('debug');
+
+    const quiet = await repo.run(['--quiet', 'config', 'get', 'provider']);
+    expect(quiet.stdout.trim()).toBe('');
+  });
+
+  it('rejects a value its custom parser refuses', async () => {
+    const result = await repo.run(['split', '--max-commits', 'abc']);
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('positive integer');
+  });
+
+  it('fails on an unknown command and on an unknown flag', async () => {
+    expect((await repo.run(['nawak'])).exitCode).toBe(1);
+    expect((await repo.run(['generate', '--nawak'])).exitCode).toBe(1);
+  });
+
+  it('accepts the short version alias and the command alias', async () => {
+    expect((await repo.run(['-v'])).stdout.trim()).toMatch(/^\d+\.\d+\.\d+$/);
+    expect((await repo.run(['gen', '--help'])).stdout).toContain('generate|gen');
+  });
+});
+
 describe('init (AC-13)', () => {
   it('creates a valid config and gitignores it', async () => {
     const fresh = createTestRepo(baseUrl);

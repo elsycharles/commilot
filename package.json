@@ -1,7 +1,7 @@
 {
   "name": "commilot",
   "version": "1.1.2",
-  "description": "AI-powered commit message generator & splitter — commit + copilot",
+  "description": "AI-powered commit message generator & splitter \u2014 commit + copilot",
   "keywords": [
     "git",
     "commit",
@@ -48,7 +48,7 @@
   },
   "dependencies": {
     "chalk": "^6.0.0",
-    "commander": "^12.1.0",
+    "commander": "^15.0.0",
     "inquirer": "^14.0.2",
     "js-yaml": "^5.2.2",
     "minimatch": "^10.0.1",
