@@ -73,6 +73,8 @@ beforeEach(() => {
   write('.commilot.yml', CONFIG);
 
   vi.stubEnv('COMMILOT_GEMINI_KEY', '');
+  // Counting requests only works if no answer is reused between tests.
+  vi.stubEnv('COMMILOT_CACHE_MINUTES', '0');
   fetchMock = vi.fn();
   vi.stubGlobal('fetch', fetchMock);
 

@@ -16,6 +16,17 @@ export interface CommonOptions {
   verbose?: boolean;
   /** Accept the AI proposal without the interactive review. */
   yes?: boolean;
+  /**
+   * Set to false by commander's `--no-cache`. Read it through
+   * {@link bypassCache} rather than directly: the negated flag means the
+   * absent case is `undefined`, not `true`.
+   */
+  cache?: boolean;
+}
+
+/** True when the user asked for a fresh answer with `--no-cache`. */
+export function bypassCache(opts: CommonOptions): boolean {
+  return opts.cache === false;
 }
 
 /**

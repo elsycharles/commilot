@@ -77,6 +77,8 @@ behaviour:
     - "*.min.css"
   splitMaxCommits: 10           # Max commits when using split command
   confirmBeforeCommit: true     # Always ask before executing git commit
+  cacheMinutes: 60              # Reuse an identical answer instead of paying a
+                                # request. 0 disables. --no-cache skips it once.
 `;
 
 /** Sanity check: the shipped template must satisfy the runtime schema. */

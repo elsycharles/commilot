@@ -1,6 +1,11 @@
 import chalk from 'chalk';
 import { formatCommitMessage } from '../core/ResponseParser.js';
-import { assertInteractive, preparePipeline, type CommonOptions } from '../core/pipeline.js';
+import {
+  assertInteractive,
+  bypassCache,
+  preparePipeline,
+  type CommonOptions,
+} from '../core/pipeline.js';
 import type { GitService } from '../core/GitService.js';
 import { summariseDiff } from '../ui/DiffDisplay.js';
 import { ReviewUI } from '../ui/ReviewUI.js';
@@ -30,7 +35,8 @@ export async function splitCommand(opts: SplitOptions, cwd: string = process.cwd
 
   const plan = await withSpinner(
     `Splitting into logical commits... ${chalk.dim(`(provider: ${providerName})`)}`,
-    () => provider.generateCommitPlan(diff, config.format, { maxCommits }),
+    () =>
+      provider.generateCommitPlan(diff, config.format, { maxCommits, noCache: bypassCache(opts) }),
     `Split into logical commits ${chalk.dim(`(provider: ${providerName})`)}`,
   );
 
@@ -50,13 +56,13 @@ export async function splitCommand(opts: SplitOptions, cwd: string = process.cwd
   } else {
     try {
       confirmed = await review.reviewPlan(plan, diff, {
-        regenerate: () => provider.generateCommitMessage(diff, config.format),
+        regenerate: () => provider.generateCommitMessage(diff, config.format, { noCache: true }),
         regenerateMerged: async (files) => {
           const subset = {
             ...diff,
             files: diff.files.filter((file) => files.includes(file.path)),
           };
-          return provider.generateCommitMessage(subset, config.format);
+          return provider.generateCommitMessage(subset, config.format, { noCache: true });
         },
       });
     } catch (err) {

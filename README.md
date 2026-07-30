@@ -215,6 +215,7 @@ Every provider block accepts the same keys (`apiKey`, `model`, `temperature`, `t
 | `behaviour.excludePatterns` | string[] | lockfiles, minified | Globs, matched at any depth |
 | `behaviour.splitMaxCommits` | number | `10` | |
 | `behaviour.confirmBeforeCommit` | bool | `true` | Set `false` to skip the final y/n |
+| `behaviour.cacheMinutes` | number | `60` | Reuse the answer for an identical diff instead of spending a request. `0` disables. Override per run with `--no-cache`, or globally with `COMMILOT_CACHE_MINUTES` |
 
 ### API key
 
