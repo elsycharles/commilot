@@ -21,7 +21,7 @@ interface ProviderDescriptor {
   available: boolean;
   /** Local backends need no credentials. */
   requiresApiKey: boolean;
-  create: (ctx: { settings: ProviderBlock; apiKey: string }) => AIProvider;
+  create: (ctx: { settings: ProviderBlock; apiKey: string; cacheMinutes: number }) => AIProvider;
 }
 
 export const DEFAULT_PROVIDER: ProviderName = 'gemini';
@@ -88,7 +88,7 @@ export class ProviderFactory {
     const apiKey = descriptor.requiresApiKey
       ? resolveApiKey(name, config as unknown as Record<string, unknown>)
       : '';
-    return descriptor.create({ settings, apiKey });
+    return descriptor.create({ settings, apiKey, cacheMinutes: config.behaviour.cacheMinutes });
   }
 
   /** Everything `commilot providers` needs to render its table. */

@@ -1,7 +1,12 @@
 import { writeFileSync } from 'node:fs';
 import chalk from 'chalk';
 import { formatCommitMessage } from '../core/ResponseParser.js';
-import { assertInteractive, preparePipeline, type CommonOptions } from '../core/pipeline.js';
+import {
+  assertInteractive,
+  bypassCache,
+  preparePipeline,
+  type CommonOptions,
+} from '../core/pipeline.js';
 import { ReviewUI } from '../ui/ReviewUI.js';
 import { withSpinner } from '../ui/Spinner.js';
 import { summariseDiff } from '../ui/DiffDisplay.js';
@@ -25,17 +30,19 @@ export async function generateCommand(
   const { git, config, provider, providerName, diff } = ctx;
   const review = new ReviewUI(config.format);
 
-  const askAi = (): Promise<CommitGroup> =>
+  const askAi = (regenerating = false): Promise<CommitGroup> =>
     provider.generateCommitMessage(diff, config.format, {
       forceType: opts.type,
       forceScope: opts.scope,
+      // A cached answer would make "Regenerate" a no-op.
+      noCache: regenerating || bypassCache(opts),
     });
 
   logger.blank();
   const label = ctx.source === 'staged' ? 'staged changes' : 'all changes';
   const group = await withSpinner(
     `Analysing ${label}... ${chalk.dim(`(provider: ${providerName})`)}`,
-    askAi,
+    () => askAi(),
     `Analysed ${summariseDiff(diff)} ${chalk.dim(`(provider: ${providerName})`)}`,
   );
 
@@ -50,7 +57,7 @@ export async function generateCommand(
   assertInteractive(opts);
   const confirmed = opts.yes
     ? group
-    : await review.reviewSingle(group, diff, { regenerate: askAi });
+    : await review.reviewSingle(group, diff, { regenerate: () => askAi(true) });
   const message = formatCommitMessage(confirmed, config.format);
 
   if (opts.hookOutput) {
