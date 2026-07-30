@@ -34,18 +34,18 @@ export const behaviourConfigSchema = z.object({
 
 export const configSchema = z.object({
   provider: z.string().default('gemini'),
-  gemini: providerBlockSchema.extend({ model: z.string().default('gemini-2.0-flash') }).default({}),
-  openai: providerBlockSchema.extend({ model: z.string().default('gpt-4o-mini') }).default({}),
-  claude: providerBlockSchema.extend({ model: z.string().default('claude-sonnet-5') }).default({}),
+  gemini: providerBlockSchema.extend({ model: z.string().default('gemini-2.0-flash') }).prefault({}),
+  openai: providerBlockSchema.extend({ model: z.string().default('gpt-4o-mini') }).prefault({}),
+  claude: providerBlockSchema.extend({ model: z.string().default('claude-sonnet-5') }).prefault({}),
   ollama: providerBlockSchema
     .extend({
       model: z.string().default('llama3.1'),
       // Local inference on CPU is far slower than a hosted API.
       timeoutMs: z.number().int().positive().default(120_000),
     })
-    .default({}),
-  format: formatConfigSchema.default({}),
-  behaviour: behaviourConfigSchema.default({}),
+    .prefault({}),
+  format: formatConfigSchema.prefault({}),
+  behaviour: behaviourConfigSchema.prefault({}),
 });
 
 export type Config = z.infer<typeof configSchema>;

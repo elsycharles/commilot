@@ -1,6 +1,6 @@
 {
   "name": "commilot",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "AI-powered commit message generator & splitter \u2014 commit + copilot",
   "keywords": [
     "git",
@@ -14,7 +14,7 @@
   "license": "MIT",
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   },
   "bin": {
     "commilot": "./dist/index.js"
@@ -49,27 +49,25 @@
   "dependencies": {
     "chalk": "^5.3.0",
     "commander": "^12.1.0",
-    "inquirer": "^9.3.7",
-    "js-yaml": "^4.1.0",
+    "inquirer": "^14.0.2",
+    "js-yaml": "^5.2.2",
     "minimatch": "^10.0.1",
-    "ora": "^8.1.0",
     "parse-diff": "^0.11.1",
     "simple-git": "^3.27.0",
-    "zod": "^3.23.8"
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "@types/inquirer": "^9.0.7",
-    "@types/js-yaml": "^4.0.9",
-    "@types/node": "^20.16.0",
+    "@types/node": "^26.1.2",
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "eslint-config-prettier": "^10.1.8",
-    "execa": "^9.4.0",
+    "execa": "^10.0.0",
+    "ora": "^9.4.1",
     "prettier": "^3.9.6",
     "tsup": "^8.5.1",
     "typedoc": "^0.28.20",
-    "typescript": "^5.6.0",
+    "typescript": "^5.9.3",
     "typescript-eslint": "^8.65.0",
     "vitest": "^4.1.10"
   },

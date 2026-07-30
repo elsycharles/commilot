@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import yaml from 'js-yaml';
+import { dump, load } from 'js-yaml';
 import { ZodError } from 'zod';
 import { configSchema, defaultConfig, type Config, type RawConfig } from '../types/config.js';
 import { ConfigError, ConfigValidationError, MissingApiKeyError } from '../utils/errors.js';
@@ -53,7 +53,7 @@ function readYamlFile(path: string): RawConfig {
   }
   let parsed: unknown;
   try {
-    parsed = yaml.load(text);
+    parsed = load(text);
   } catch (err) {
     throw new ConfigError(`${path} is not valid YAML — ${(err as Error).message}`);
   }
@@ -181,7 +181,7 @@ export function readRawConfig(path: string): RawConfig {
 
 /** Write a raw config object back to disk as YAML. */
 export function writeRawConfig(path: string, raw: RawConfig): void {
-  writeFileSync(path, yaml.dump(raw, { indent: 2, lineWidth: 100, noRefs: true }), 'utf8');
+  writeFileSync(path, dump(raw, { indent: 2, lineWidth: 100, noRefs: true }), 'utf8');
 }
 
 /** Read a dotted key path (`format.types`) out of an object. */
