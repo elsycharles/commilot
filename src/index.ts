@@ -62,6 +62,7 @@ export function buildCli(): Command {
     .option('--scope <scope>', 'Force the commit scope instead of letting the AI pick')
     .option('--provider <name>', 'Override the configured AI provider')
     .option('-y, --yes', 'Accept the generated message without the interactive review')
+    .option('--no-cache', 'Always call the provider, ignoring any cached answer')
     .option('--hook-output <file>', 'Write the message to a file instead of committing')
     .action(async (opts: Parameters<typeof generateCommand>[0], command: Command) => {
       applyGlobalFlags(command);
@@ -77,6 +78,7 @@ export function buildCli(): Command {
     .option('--max-commits <n>', 'Maximum number of commits to propose', parseMaxCommits)
     .option('--provider <name>', 'Override the configured AI provider')
     .option('-y, --yes', 'Accept the whole commit plan without the interactive review')
+    .option('--no-cache', 'Always call the provider, ignoring any cached answer')
     .action(async (opts, command: Command) => {
       applyGlobalFlags(command);
       await splitCommand(opts);

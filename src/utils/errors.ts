@@ -58,9 +58,24 @@ export class ApiAuthError extends CommilotError {
 }
 
 export class ApiRateLimitError extends CommilotError {
-  constructor(detail?: string) {
-    super('API rate limit exceeded. Wait and try again, or use a different API key.', { detail });
+  constructor(opts: { retryAfterSeconds?: number; quota?: string; detail?: string } = {}) {
+    const wait =
+      opts.retryAfterSeconds !== undefined
+        ? ` Try again in ${formatDuration(opts.retryAfterSeconds)}.`
+        : '';
+    const quota = opts.quota ? ` Quota hit: ${opts.quota}.` : '';
+    super(
+      `API rate limit exceeded.${wait}${quota} Options: wait, use a different API key, or run locally with \`--provider ollama\` (no quota).`,
+      { detail: opts.detail },
+    );
   }
+}
+
+function formatDuration(seconds: number): string {
+  if (seconds < 60) return `${Math.ceil(seconds)}s`;
+  const minutes = Math.ceil(seconds / 60);
+  if (minutes < 60) return `${minutes} min`;
+  return `${Math.ceil(minutes / 60)}h`;
 }
 
 export class ApiTimeoutError extends CommilotError {

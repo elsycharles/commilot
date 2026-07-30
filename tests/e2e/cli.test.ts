@@ -299,6 +299,61 @@ describe('generate', () => {
   });
 });
 
+describe('request economy', () => {
+  // Free tiers are metered per request, so what matters is how many leave the
+  // machine, not how many commands were run.
+  it('serves an unchanged diff from cache instead of asking again', async () => {
+    repo.write('src.ts', 'export const a = 1;\n');
+    repo.git('add', 'src.ts');
+    const before = server.requests.length;
+    server.reply(GENERATE_JSON);
+
+    const first = await repo.run(['generate', '--dry-run'], { COMMILOT_CACHE_MINUTES: '60' });
+    const second = await repo.run(['generate', '--dry-run'], { COMMILOT_CACHE_MINUTES: '60' });
+
+    expect(first.stdout).toContain('feat(auth)');
+    expect(second.stdout).toContain('feat(auth)');
+    // Two commands, one request: the second answer came from the cache.
+    expect(server.requests.length - before).toBe(1);
+  });
+
+  it('always asks again with --no-cache', async () => {
+    repo.write('src.ts', 'export const b = 2;\n');
+    repo.git('add', 'src.ts');
+    const before = server.requests.length;
+    server.reply(GENERATE_JSON).reply(GENERATE_JSON);
+
+    await repo.run(['generate', '--dry-run'], { COMMILOT_CACHE_MINUTES: '60' });
+    await repo.run(['generate', '--dry-run', '--no-cache'], { COMMILOT_CACHE_MINUTES: '60' });
+
+    expect(server.requests.length - before).toBe(2);
+  });
+
+  it('spends a single request when the provider reports a quota', async () => {
+    repo.write('src.ts', 'export const c = 3;\n');
+    repo.git('add', 'src.ts');
+    const before = server.requests.length;
+    server.fail(429, {
+      error: {
+        details: [
+          {
+            '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+            violations: [{ quotaId: 'RequestsPerDay' }],
+          },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '3600s' },
+        ],
+      },
+    });
+
+    const result = await repo.run(['generate', '--dry-run']);
+
+    expect(result.exitCode).toBe(1);
+    expect(result.stderr).toContain('rate limit');
+    expect(result.stderr).toContain('ollama');
+    expect(server.requests.length - before).toBe(1);
+  });
+});
+
 describe('provider selection (AC-06, AC-22)', () => {
   it('errors on an unsupported provider listing what is available', async () => {
     repo.write('src.ts', 'export const a = 1;\n');

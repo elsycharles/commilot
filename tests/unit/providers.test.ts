@@ -131,12 +131,81 @@ describe('GeminiProvider', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('maps an exhausted 429 to ApiRateLimitError (AC-19)', async () => {
+  it('fails immediately on a 429 that gives no retry delay (AC-19)', async () => {
     fetchMock.mockImplementation(async () => jsonResponse({ error: 'slow down' }, 429));
-    const promise = makeGemini({ maxRetries: 1 }).generateCommitMessage(diff, format);
-    const assertion = expect(promise).rejects.toBeInstanceOf(ApiRateLimitError);
-    await vi.advanceTimersByTimeAsync(2000);
-    await assertion;
+
+    await expect(makeGemini().generateCommitMessage(diff, format)).rejects.toBeInstanceOf(
+      ApiRateLimitError,
+    );
+    // Without a delay from the provider, guessing one would just waste quota.
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('spends one request on an exhausted quota, not four (AC-19)', async () => {
+    // Retrying a 429 burns the very quota that is exhausted: the dashboard
+    // showed four refusals for a single command before this.
+    const quotaBody = {
+      error: {
+        code: 429,
+        details: [
+          {
+            '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+            violations: [{ quotaId: 'GenerateRequestsPerDayPerProjectPerModel-FreeTier' }],
+          },
+          { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '3600s' },
+        ],
+      },
+    };
+    fetchMock.mockImplementation(async () => jsonResponse(quotaBody, 429));
+
+    await expect(makeGemini().generateCommitMessage(diff, format)).rejects.toBeInstanceOf(
+      ApiRateLimitError,
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports the wait and the quota that was hit', async () => {
+    fetchMock.mockImplementation(async () =>
+      jsonResponse(
+        {
+          error: {
+            details: [
+              {
+                '@type': 'type.googleapis.com/google.rpc.QuotaFailure',
+                violations: [{ quotaId: 'RequestsPerDay' }],
+              },
+              { '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '120s' },
+            ],
+          },
+        },
+        429,
+      ),
+    );
+
+    await expect(makeGemini().generateCommitMessage(diff, format)).rejects.toThrow(
+      /Try again in 2 min.*RequestsPerDay.*ollama/s,
+    );
+  });
+
+  it('waits out a short rate limit once, then succeeds', async () => {
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse(
+          {
+            error: {
+              details: [{ '@type': 'type.googleapis.com/google.rpc.RetryInfo', retryDelay: '2s' }],
+            },
+          },
+          429,
+        ),
+      )
+      .mockResolvedValueOnce(jsonResponse(geminiEnvelope(GENERATE_JSON)));
+
+    const promise = makeGemini().generateCommitMessage(diff, format);
+    await vi.advanceTimersByTimeAsync(3000);
+
+    await expect(promise).resolves.toMatchObject({ type: 'feat' });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it('surfaces a blocked prompt', async () => {

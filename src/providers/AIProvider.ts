@@ -9,6 +9,8 @@ export interface GenerateOptions {
   forceType?: string;
   /** Forces the AI to use this scope instead of picking one. */
   forceScope?: string;
+  /** Skip the response cache — what `regenerate` needs to get a new answer. */
+  noCache?: boolean;
 }
 
 /**
@@ -46,4 +48,6 @@ export interface ProviderContext {
   settings: ProviderBlock;
   /** Resolved API key; empty string when none is configured. */
   apiKey: string;
+  /** How long an identical answer may be reused. 0 disables the cache. */
+  cacheMinutes?: number;
 }

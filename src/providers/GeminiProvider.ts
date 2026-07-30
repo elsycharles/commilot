@@ -40,6 +40,44 @@ export class GeminiProvider extends BaseHttpProvider {
     };
   }
 
+  /**
+   * Gemini answers a 429 with `RetryInfo.retryDelay` ("34s") and a
+   * `QuotaFailure` naming the limit that was hit — both in the body, not in a
+   * header. Reading them is what tells the user whether to wait a moment or
+   * come back tomorrow.
+   */
+  protected override readRateLimit(
+    headers: Headers,
+    detail: string,
+  ): { retryAfterSeconds?: number; quota?: string } {
+    const fromHeader = super.readRateLimit(headers, detail);
+
+    let payload: unknown;
+    try {
+      payload = JSON.parse(detail);
+    } catch {
+      return fromHeader;
+    }
+
+    const details = (payload as { error?: { details?: unknown[] } }).error?.details ?? [];
+    let retryAfterSeconds = fromHeader.retryAfterSeconds;
+    let quota: string | undefined;
+
+    for (const entry of details as Array<Record<string, unknown>>) {
+      const type = String(entry['@type'] ?? '');
+      if (type.endsWith('RetryInfo') && typeof entry.retryDelay === 'string') {
+        const seconds = Number.parseFloat(entry.retryDelay.replace(/s$/, ''));
+        if (Number.isFinite(seconds)) retryAfterSeconds = seconds;
+      }
+      if (type.endsWith('QuotaFailure') && Array.isArray(entry.violations)) {
+        const first = entry.violations[0] as { quotaMetric?: string; quotaId?: string } | undefined;
+        quota = first?.quotaId ?? first?.quotaMetric;
+      }
+    }
+
+    return { retryAfterSeconds, quota };
+  }
+
   protected override extractText(payload: unknown): string {
     const response = payload as GeminiResponse;
     const blockReason = response.promptFeedback?.blockReason;

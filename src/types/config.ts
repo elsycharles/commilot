@@ -30,6 +30,8 @@ export const behaviourConfigSchema = z.object({
     .default(['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '*.min.js', '*.min.css']),
   splitMaxCommits: z.number().int().positive().max(50).default(10),
   confirmBeforeCommit: z.boolean().default(true),
+  /** Reuse an identical answer for this long instead of paying a request. 0 disables. */
+  cacheMinutes: z.number().int().min(0).default(60),
 });
 
 export const configSchema = z.object({

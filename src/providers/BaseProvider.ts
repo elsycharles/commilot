@@ -1,3 +1,4 @@
+import { cacheKey, readCache, resolveTtlMinutes, writeCache } from '../core/ResponseCache.js';
 import { parseCommitGroup, parseCommitPlan, stripFences } from '../core/ResponseParser.js';
 import type { CommitGroup, CommitPlan } from '../types/commit.js';
 import type { FormatConfig } from '../types/config.js';
@@ -14,7 +15,18 @@ import { logger } from '../utils/logger.js';
 import type { AIProvider, GenerateOptions, ProviderContext } from './AIProvider.js';
 import { PromptBuilder, type BuiltPrompt } from './PromptBuilder.js';
 
-const RETRY_STATUSES = new Set([408, 429, 500, 502, 503, 504]);
+/**
+ * 429 is deliberately absent: a rate limit means the request was counted and
+ * refused, so blind retries burn more of the very quota that is exhausted.
+ * They get their own path below.
+ */
+const RETRY_STATUSES = new Set([408, 500, 502, 503, 504]);
+
+/**
+ * Only wait out a rate limit the provider says is this short. Beyond it,
+ * failing immediately is both faster for the user and cheaper on the quota.
+ */
+const MAX_RATE_LIMIT_WAIT_SECONDS = 20;
 /** Exponential backoff delays in milliseconds (spec §5.3). */
 const BACKOFF_MS = [1000, 3000, 9000];
 
@@ -55,7 +67,7 @@ export abstract class BaseHttpProvider implements AIProvider {
   ): Promise<CommitGroup> {
     const prompt = new PromptBuilder(config).buildGeneratePrompt(diff);
     logger.debug(`${this.getProviderName()} generate — strategy: ${prompt.strategy}`);
-    const raw = await this.requestWithRepair(prompt);
+    const raw = await this.requestWithRepair(prompt, opts.noCache);
     const group = parseCommitGroup(raw, config, diff);
     return {
       ...group,
@@ -73,7 +85,7 @@ export abstract class BaseHttpProvider implements AIProvider {
     const maxCommits = opts.maxCommits ?? 10;
     const prompt = new PromptBuilder(config).buildSplitPrompt(diff, maxCommits);
     logger.debug(`${this.getProviderName()} split — strategy: ${prompt.strategy}`);
-    const raw = await this.requestWithRepair(prompt);
+    const raw = await this.requestWithRepair(prompt, opts.noCache);
     return parseCommitPlan(raw, config, diff, maxCommits);
   }
 
@@ -87,16 +99,33 @@ export abstract class BaseHttpProvider implements AIProvider {
    * One API call plus a single retry when the model returns something that is
    * not parseable JSON (spec AC-12).
    */
-  private async requestWithRepair(prompt: BuiltPrompt): Promise<string> {
+  private async requestWithRepair(prompt: BuiltPrompt, noCache = false): Promise<string> {
+    const key = cacheKey({
+      provider: this.getProviderName(),
+      model: this.ctx.settings.model,
+      system: prompt.system,
+      user: prompt.user,
+    });
+    const ttl = noCache ? 0 : resolveTtlMinutes(this.ctx.cacheMinutes);
+
+    const cached = readCache(key, ttl);
+    if (cached) return cached;
+
     const text = await this.request(prompt);
-    if (looksLikeJson(text)) return text;
+    if (looksLikeJson(text)) {
+      writeCache(key, text, ttl);
+      return text;
+    }
 
     logger.debug(`non-JSON response, retrying once: ${text.slice(0, 200)}`);
     const retry = await this.request({
       ...prompt,
       system: `${prompt.system}\n\nYour previous answer was not valid JSON. Respond with JSON only, no prose and no markdown fences.`,
     });
-    if (looksLikeJson(retry)) return retry;
+    if (looksLikeJson(retry)) {
+      writeCache(key, retry, ttl);
+      return retry;
+    }
     throw new MalformedResponseError(`raw response: ${retry.slice(0, 500)}`);
   }
 
@@ -106,6 +135,7 @@ export abstract class BaseHttpProvider implements AIProvider {
     const maxRetries = this.ctx.settings.maxRetries;
 
     let lastError: Error | undefined;
+    let rateLimitRetried = false;
     for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
       if (attempt > 0) {
         const delay = BACKOFF_MS[Math.min(attempt - 1, BACKOFF_MS.length - 1)] ?? 9000;
@@ -125,6 +155,24 @@ export abstract class BaseHttpProvider implements AIProvider {
 
         if (!response.ok) {
           const detail = (await response.text()).slice(0, 1000);
+
+          if (response.status === 429) {
+            const limit = this.readRateLimit(response.headers, detail);
+            const error = new ApiRateLimitError({ ...limit, detail });
+            // Retry only when the provider itself promises a short wait, and
+            // only once: anything else spends quota to be refused again.
+            const waitable =
+              limit.retryAfterSeconds !== undefined &&
+              limit.retryAfterSeconds <= MAX_RATE_LIMIT_WAIT_SECONDS;
+            if (waitable && !rateLimitRetried && attempt < maxRetries) {
+              rateLimitRetried = true;
+              logger.debug(`rate limited; provider asks for ${limit.retryAfterSeconds}s`);
+              await sleep((limit.retryAfterSeconds ?? 0) * 1000 + 250);
+              continue;
+            }
+            throw error;
+          }
+
           const error = this.mapHttpError(response.status, detail);
           if (RETRY_STATUSES.has(response.status) && attempt < maxRetries) {
             lastError = error;
@@ -168,8 +216,31 @@ export abstract class BaseHttpProvider implements AIProvider {
 
   protected mapHttpError(status: number, detail: string): Error {
     if (status === 401 || status === 403) return new ApiAuthError(this.getProviderName(), detail);
-    if (status === 429) return new ApiRateLimitError(detail);
+    // 429 never reaches here: `request` handles it, so the wait and the quota
+    // it reports are not lost.
+    if (status === 429) return new ApiRateLimitError({ detail });
     return new ApiRequestError(this.getProviderName(), status, detail);
+  }
+
+  /**
+   * What the provider says about a rate limit: how long to wait, and which
+   * quota was hit. The `retry-after` header is the common case; providers that
+   * put it in the body override this.
+   */
+  protected readRateLimit(
+    headers: Headers,
+    _detail: string,
+  ): { retryAfterSeconds?: number; quota?: string } {
+    const header = headers.get('retry-after');
+    if (!header) return {};
+    const seconds = Number(header);
+    if (Number.isFinite(seconds)) return { retryAfterSeconds: seconds };
+    // The header may also be an HTTP date.
+    const at = Date.parse(header);
+    if (!Number.isNaN(at)) {
+      return { retryAfterSeconds: Math.max(0, (at - Date.now()) / 1000) };
+    }
+    return {};
   }
 
   /** What to tell the user when the endpoint could not be reached at all. */

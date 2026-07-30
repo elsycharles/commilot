@@ -154,6 +154,8 @@ export async function runCli(
       COMMILOT_GEMINI_KEY: '',
       COMMILOT_OPENAI_KEY: '',
       COMMILOT_CLAUDE_KEY: '',
+      // These tests count requests: a shared cached answer would make them lie.
+      COMMILOT_CACHE_MINUTES: '0',
       FORCE_COLOR: '0',
       ...env,
     },
