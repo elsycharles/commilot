@@ -253,6 +253,23 @@ describe('initCommand (AC-13)', () => {
     expect(readFileSync(join(repo, '.commilot.yml'), 'utf8')).toContain('# Commilot Configuration');
   });
 
+  it('creates the current filename even when the old one is present', async () => {
+    // Resolving to the legacy path here would make the rename impossible to
+    // escape: init would report "already exists" forever.
+    const fresh = mkdtempSync(join(tmpdir(), 'commilot-init-'));
+    try {
+      writeFileSync(join(fresh, '.commitHelper.yml'), 'format:\n  language: es\n', 'utf8');
+
+      await initCommand({ gitignore: false }, fresh);
+
+      expect(existsSync(join(fresh, '.commilot.yml'))).toBe(true);
+      // The old file is left alone rather than overwritten.
+      expect(readFileSync(join(fresh, '.commitHelper.yml'), 'utf8')).toContain('language: es');
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
+  });
+
   it('skips the .gitignore entry when asked to', async () => {
     const fresh = mkdtempSync(join(tmpdir(), 'commilot-init-'));
     try {
@@ -275,6 +292,20 @@ describe('config commands', () => {
     const dump = stdout.join('\n');
     expect(dump).toContain('provider: gemini');
     expect(dump).not.toContain('test-key');
+  });
+
+  it('writes to the file already in use rather than creating a second one', async () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'commilot-set-'));
+    try {
+      writeFileSync(join(fresh, '.commitHelper.yml'), 'format:\n  language: es\n', 'utf8');
+
+      await configSetCommand('format.language', 'it', {}, fresh);
+
+      expect(readFileSync(join(fresh, '.commitHelper.yml'), 'utf8')).toContain('language: it');
+      expect(existsSync(join(fresh, '.commilot.yml'))).toBe(false);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 
   it('rejects an unknown key', async () => {

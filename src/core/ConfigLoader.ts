@@ -99,13 +99,28 @@ export function findProjectConfig(cwd: string = process.cwd()): string | undefin
   }
 }
 
+/** The home config actually in use, old name included. */
 export function getHomeConfigPath(): string {
   return resolveConfigFile(homedir()) ?? join(homedir(), CONFIG_FILENAME);
 }
 
-/** Resolved path a config file would live at for the given scope. */
+/**
+ * Where a config file belongs, under the current name. `init` uses this, so a
+ * user sitting on the old filename can always create the new one — resolving
+ * to the old path here would make the rename impossible to escape.
+ */
 export function getConfigPath(scope: ConfigScope, cwd: string = process.cwd()): string {
-  return scope === 'global' ? getHomeConfigPath() : join(resolve(cwd), CONFIG_FILENAME);
+  const dir = scope === 'global' ? homedir() : resolve(cwd);
+  return join(dir, CONFIG_FILENAME);
+}
+
+/**
+ * Where a write should land: the file already in use if there is one, so
+ * `config set` never edits a file that a legacy one would then shadow.
+ */
+export function getWritableConfigPath(scope: ConfigScope, cwd: string = process.cwd()): string {
+  const dir = scope === 'global' ? homedir() : resolve(cwd);
+  return resolveConfigFile(dir) ?? join(dir, CONFIG_FILENAME);
 }
 
 /**
