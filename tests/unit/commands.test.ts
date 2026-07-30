@@ -40,6 +40,12 @@ function write(name: string, content: string): void {
   writeFileSync(join(repo, name), content, 'utf8');
 }
 
+/** Captured output without ANSI, so assertions hold with or without colour. */
+function plainOutput(): string {
+  // eslint-disable-next-line no-control-regex
+  return stdout.join('\n').replace(/\u001B\[[0-9;]*m/g, '');
+}
+
 function log(): string[] {
   return git('log', '--format=%s').split('\n').filter(Boolean);
 }
@@ -286,7 +292,7 @@ describe('config commands', () => {
 describe('providersCommand (AC-14)', () => {
   it('lists every shipped provider with its state', async () => {
     await providersCommand(repo);
-    const output = stdout.join('\n');
+    const output = plainOutput();
 
     expect(output).toContain('gemini (default)');
     expect(output).toContain('API key configured');
@@ -298,7 +304,7 @@ describe('providersCommand (AC-14)', () => {
 
   it('says which providers still need a key, and that ollama needs none', async () => {
     await providersCommand(repo);
-    const output = stdout.join('\n');
+    const output = plainOutput();
 
     expect(output).toContain('Ready — no API key needed');
     expect(output).toContain('COMMILOT_OPENAI_KEY');
