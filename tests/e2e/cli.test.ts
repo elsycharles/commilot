@@ -69,13 +69,13 @@ describe('option parsing', () => {
   // what a major upgrade of it would break first.
   it('honours a negated flag', async () => {
     const fresh = createTestRepo(baseUrl);
-    rmSync(join(fresh.dir, '.commitHelper.yml'));
+    rmSync(join(fresh.dir, '.commilot.yml'));
     rmSync(join(fresh.dir, '.gitignore'));
     try {
       await fresh.run(['init', '--no-gitignore']);
       expect(existsSync(join(fresh.dir, '.gitignore'))).toBe(false);
 
-      rmSync(join(fresh.dir, '.commitHelper.yml'));
+      rmSync(join(fresh.dir, '.commilot.yml'));
       await fresh.run(['init']);
       expect(existsSync(join(fresh.dir, '.gitignore'))).toBe(true);
     } finally {
@@ -111,18 +111,18 @@ describe('option parsing', () => {
 describe('init (AC-13)', () => {
   it('creates a valid config and gitignores it', async () => {
     const fresh = createTestRepo(baseUrl);
-    rmSync(join(fresh.dir, '.commitHelper.yml'));
+    rmSync(join(fresh.dir, '.commilot.yml'));
     try {
       const result = await fresh.run(['init']);
       expect(result.exitCode).toBe(0);
 
-      const config = readFileSync(join(fresh.dir, '.commitHelper.yml'), 'utf8');
+      const config = readFileSync(join(fresh.dir, '.commilot.yml'), 'utf8');
       expect(config).toContain('provider: gemini');
       expect(config).toContain('# openai:');
       expect(config).toContain('# claude:');
       expect(config).toContain('{type}({scope}) - {description}');
 
-      expect(readFileSync(join(fresh.dir, '.gitignore'), 'utf8')).toContain('.commitHelper.yml');
+      expect(readFileSync(join(fresh.dir, '.gitignore'), 'utf8')).toContain('.commilot.yml');
     } finally {
       fresh.cleanup();
     }
@@ -133,7 +133,7 @@ describe('init (AC-13)', () => {
     expect(result.exitCode).toBe(0);
     expect(result.stderr).toContain('already exists');
     // The original config (with our baseUrl) survived.
-    expect(readFileSync(join(repo.dir, '.commitHelper.yml'), 'utf8')).toContain('baseUrl');
+    expect(readFileSync(join(repo.dir, '.commilot.yml'), 'utf8')).toContain('baseUrl');
   });
 });
 
@@ -350,7 +350,7 @@ describe('provider selection (AC-06, AC-22)', () => {
     const local = createTestRepo(baseUrl);
     try {
       local.write(
-        '.commitHelper.yml',
+        '.commilot.yml',
         `provider: ollama\nollama:\n  model: llama3.1\n  baseUrl: "${baseUrl}"\n  maxRetries: 0\n`,
       );
       local.write('src.ts', 'export const a = 1;\n');
@@ -370,7 +370,7 @@ describe('provider selection (AC-06, AC-22)', () => {
     const keyless = createTestRepo(baseUrl);
     try {
       keyless.write(
-        '.commitHelper.yml',
+        '.commilot.yml',
         `provider: gemini\ngemini:\n  apiKey: ""\n  baseUrl: "${baseUrl}"\n`,
       );
       keyless.write('src.ts', 'export const a = 1;\n');
@@ -390,7 +390,7 @@ describe('provider selection (AC-06, AC-22)', () => {
     const envRepo = createTestRepo(baseUrl);
     try {
       envRepo.write(
-        '.commitHelper.yml',
+        '.commilot.yml',
         `provider: gemini\ngemini:\n  apiKey: ""\n  baseUrl: "${baseUrl}"\n  maxRetries: 0\n`,
       );
       envRepo.write('src.ts', 'export const a = 1;\n');

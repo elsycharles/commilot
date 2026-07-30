@@ -3,7 +3,7 @@ import { dump } from 'js-yaml';
 import {
   coerceConfigValue,
   getByPath,
-  getConfigPath,
+  getWritableConfigPath,
   loadConfigWithSources,
   readRawConfig,
   setByPath,
@@ -62,7 +62,7 @@ export async function configSetCommand(
 ): Promise<void> {
   assertKnownKey(key);
   const value = coerceConfigValue(key, rawValue);
-  const path = getConfigPath(opts.global ? 'global' : 'project', cwd);
+  const path = getWritableConfigPath(opts.global ? 'global' : 'project', cwd);
 
   const raw = readRawConfig(path);
   setByPath(raw, key, value);

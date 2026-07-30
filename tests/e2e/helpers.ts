@@ -209,11 +209,11 @@ export function createTestRepo(baseUrl: string, extraConfig = ''): TestRepo {
     writeFileSync(join(dir, name), content, 'utf8');
   };
 
-  write('.commitHelper.yml', testConfig(baseUrl, extraConfig));
+  write('.commilot.yml', testConfig(baseUrl, extraConfig));
 
   // A first commit so HEAD exists, mirroring a real repository. The config is
   // gitignored exactly as `commilot init` would leave it.
-  write('.gitignore', '.commitHelper.yml\n');
+  write('.gitignore', '.commilot.yml\n');
   write('README.md', '# fixture\n');
   git('add', 'README.md', '.gitignore');
   git('commit', '--quiet', '-m', 'dev(init) - add readme');

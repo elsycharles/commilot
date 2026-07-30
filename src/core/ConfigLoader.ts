@@ -7,7 +7,7 @@ import { configSchema, defaultConfig, type Config, type RawConfig } from '../typ
 import { ConfigError, ConfigValidationError, MissingApiKeyError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
-export const CONFIG_FILENAME = '.commitHelper.yml';
+export const CONFIG_FILENAME = '.commilot.yml';
 
 export type ConfigScope = 'project' | 'global';
 
@@ -64,12 +64,33 @@ function readYamlFile(path: string): RawConfig {
   return parsed;
 }
 
+/** Name used before the file was renamed after the tool itself. */
+export const LEGACY_CONFIG_FILENAME = '.commitHelper.yml';
+
+/**
+ * Accept the old filename so an existing setup keeps working, but say so once,
+ * rather than silently ignoring a config the user believes is being read.
+ */
+function resolveConfigFile(dir: string): string | undefined {
+  const current = join(dir, CONFIG_FILENAME);
+  if (existsSync(current)) return current;
+
+  const legacy = join(dir, LEGACY_CONFIG_FILENAME);
+  if (existsSync(legacy)) {
+    logger.warn(
+      `${legacy} is the old configuration name. Rename it to ${CONFIG_FILENAME}; support for the old name will be dropped.`,
+    );
+    return legacy;
+  }
+  return undefined;
+}
+
 /** Walk up from `cwd` looking for a project-level config file. */
 export function findProjectConfig(cwd: string = process.cwd()): string | undefined {
   let dir = resolve(cwd);
   for (;;) {
-    const candidate = join(dir, CONFIG_FILENAME);
-    if (existsSync(candidate)) return candidate;
+    const candidate = resolveConfigFile(dir);
+    if (candidate) return candidate;
     // Stop at the repository root so we never pick up a sibling project's file.
     if (existsSync(join(dir, '.git'))) return undefined;
     const parent = dirname(dir);
@@ -78,13 +99,28 @@ export function findProjectConfig(cwd: string = process.cwd()): string | undefin
   }
 }
 
+/** The home config actually in use, old name included. */
 export function getHomeConfigPath(): string {
-  return join(homedir(), CONFIG_FILENAME);
+  return resolveConfigFile(homedir()) ?? join(homedir(), CONFIG_FILENAME);
 }
 
-/** Resolved path a config file would live at for the given scope. */
+/**
+ * Where a config file belongs, under the current name. `init` uses this, so a
+ * user sitting on the old filename can always create the new one — resolving
+ * to the old path here would make the rename impossible to escape.
+ */
 export function getConfigPath(scope: ConfigScope, cwd: string = process.cwd()): string {
-  return scope === 'global' ? getHomeConfigPath() : join(resolve(cwd), CONFIG_FILENAME);
+  const dir = scope === 'global' ? homedir() : resolve(cwd);
+  return join(dir, CONFIG_FILENAME);
+}
+
+/**
+ * Where a write should land: the file already in use if there is one, so
+ * `config set` never edits a file that a legacy one would then shadow.
+ */
+export function getWritableConfigPath(scope: ConfigScope, cwd: string = process.cwd()): string {
+  const dir = scope === 'global' ? homedir() : resolve(cwd);
+  return resolveConfigFile(dir) ?? join(dir, CONFIG_FILENAME);
 }
 
 /**

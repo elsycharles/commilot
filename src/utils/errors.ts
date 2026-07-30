@@ -37,7 +37,7 @@ export class DiffTooLargeError extends CommilotError {
 export class MissingApiKeyError extends CommilotError {
   constructor(provider: string) {
     super(
-      `No API key configured for provider '${provider}'. Set \`${provider}.apiKey\` in \`.commitHelper.yml\` or export \`COMMILOT_${provider.toUpperCase()}_KEY\`.`,
+      `No API key configured for provider '${provider}'. Set \`${provider}.apiKey\` in \`.commilot.yml\` or export \`COMMILOT_${provider.toUpperCase()}_KEY\`.`,
     );
   }
 }
@@ -51,7 +51,7 @@ export class UnsupportedProviderError extends CommilotError {
 
 export class ApiAuthError extends CommilotError {
   constructor(provider: string, detail?: string) {
-    super(`Invalid API key for ${provider}. Check your API key in \`.commitHelper.yml\`.`, {
+    super(`Invalid API key for ${provider}. Check your API key in \`.commilot.yml\`.`, {
       detail,
     });
   }

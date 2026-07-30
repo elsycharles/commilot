@@ -66,11 +66,11 @@ beforeEach(() => {
   git('config', 'user.email', 'test@commilot.dev');
   git('config', 'user.name', 'Commilot Test');
   git('config', 'commit.gpgsign', 'false');
-  write('.gitignore', '.commitHelper.yml\n');
+  write('.gitignore', '.commilot.yml\n');
   write('README.md', '# fixture\n');
   git('add', 'README.md', '.gitignore');
   git('commit', '--quiet', '-m', 'dev(init) - add readme');
-  write('.commitHelper.yml', CONFIG);
+  write('.commilot.yml', CONFIG);
 
   vi.stubEnv('COMMILOT_GEMINI_KEY', '');
   fetchMock = vi.fn();
@@ -149,7 +149,7 @@ describe('generateCommand', () => {
   });
 
   it('rejects an oversized diff (AC-10)', async () => {
-    write('.commitHelper.yml', `${CONFIG}behaviour:\n  maxDiffLines: 2\n`);
+    write('.commilot.yml', `${CONFIG}behaviour:\n  maxDiffLines: 2\n`);
     write('big.ts', Array.from({ length: 30 }, (_, i) => `const v${i} = ${i};`).join('\n'));
     git('add', 'big.ts');
     await expect(generateCommand({ yes: true }, repo)).rejects.toBeInstanceOf(DiffTooLargeError);
@@ -169,7 +169,7 @@ describe('generateCommand', () => {
   it('stages everything first when behaviour.autoStage is on', async () => {
     reply(GENERATE_JSON);
     git('reset', '--quiet', 'HEAD');
-    write('.commitHelper.yml', `${CONFIG}behaviour:\n  autoStage: true\n`);
+    write('.commilot.yml', `${CONFIG}behaviour:\n  autoStage: true\n`);
 
     await generateCommand({ yes: true }, repo);
 
@@ -236,10 +236,10 @@ describe('initCommand (AC-13)', () => {
     const fresh = mkdtempSync(join(tmpdir(), 'commilot-init-'));
     try {
       await initCommand({}, fresh);
-      const config = readFileSync(join(fresh, '.commitHelper.yml'), 'utf8');
+      const config = readFileSync(join(fresh, '.commilot.yml'), 'utf8');
       expect(config).toContain('provider: gemini');
       expect(config).toContain('# openai:');
-      expect(readFileSync(join(fresh, '.gitignore'), 'utf8')).toContain('.commitHelper.yml');
+      expect(readFileSync(join(fresh, '.gitignore'), 'utf8')).toContain('.commilot.yml');
     } finally {
       rmSync(fresh, { recursive: true, force: true });
     }
@@ -247,12 +247,27 @@ describe('initCommand (AC-13)', () => {
 
   it('does not overwrite an existing config unless forced', async () => {
     await initCommand({}, repo);
-    expect(readFileSync(join(repo, '.commitHelper.yml'), 'utf8')).toBe(CONFIG);
+    expect(readFileSync(join(repo, '.commilot.yml'), 'utf8')).toBe(CONFIG);
 
     await initCommand({ force: true }, repo);
-    expect(readFileSync(join(repo, '.commitHelper.yml'), 'utf8')).toContain(
-      '# Commilot Configuration',
-    );
+    expect(readFileSync(join(repo, '.commilot.yml'), 'utf8')).toContain('# Commilot Configuration');
+  });
+
+  it('creates the current filename even when the old one is present', async () => {
+    // Resolving to the legacy path here would make the rename impossible to
+    // escape: init would report "already exists" forever.
+    const fresh = mkdtempSync(join(tmpdir(), 'commilot-init-'));
+    try {
+      writeFileSync(join(fresh, '.commitHelper.yml'), 'format:\n  language: es\n', 'utf8');
+
+      await initCommand({ gitignore: false }, fresh);
+
+      expect(existsSync(join(fresh, '.commilot.yml'))).toBe(true);
+      // The old file is left alone rather than overwritten.
+      expect(readFileSync(join(fresh, '.commitHelper.yml'), 'utf8')).toContain('language: es');
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 
   it('skips the .gitignore entry when asked to', async () => {
@@ -277,6 +292,20 @@ describe('config commands', () => {
     const dump = stdout.join('\n');
     expect(dump).toContain('provider: gemini');
     expect(dump).not.toContain('test-key');
+  });
+
+  it('writes to the file already in use rather than creating a second one', async () => {
+    const fresh = mkdtempSync(join(tmpdir(), 'commilot-set-'));
+    try {
+      writeFileSync(join(fresh, '.commitHelper.yml'), 'format:\n  language: es\n', 'utf8');
+
+      await configSetCommand('format.language', 'it', {}, fresh);
+
+      expect(readFileSync(join(fresh, '.commitHelper.yml'), 'utf8')).toContain('language: it');
+      expect(existsSync(join(fresh, '.commilot.yml'))).toBe(false);
+    } finally {
+      rmSync(fresh, { recursive: true, force: true });
+    }
   });
 
   it('rejects an unknown key', async () => {

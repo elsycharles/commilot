@@ -22,7 +22,7 @@ Worth knowing before you report, and before you use it on sensitive code:
   content of your changed files leaves your machine. With `ollama`, nothing does.
 - **Files matching `behaviour.excludePatterns` are stripped before the request.** Add `.env*` and
   anything else confidential to that list.
-- **API keys** are read from `COMMILOT_<PROVIDER>_KEY` or from `.commitHelper.yml`. `commilot init`
+- **API keys** are read from `COMMILOT_<PROVIDER>_KEY` or from `.commilot.yml`. `commilot init`
   adds that file to `.gitignore`, and `commilot config get` masks the value. Keys are never logged,
   including with `--verbose`.
 - **Commilot runs `git` commands** in the current repository: `add`, `commit`, `reset HEAD`. It

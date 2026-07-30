@@ -72,7 +72,7 @@ provider. If a provider needs different phrasing, that is a bug in the prompt.
 ## Commit messages
 
 Commilot dog-foods itself. Commits follow `type(scope) - description` with types `dev`, `feat` and
-`bug`, per the repository's own `.commitHelper.yml`:
+`bug`, per the repository's own `.commilot.yml`:
 
 ```bash
 export COMMILOT_GEMINI_KEY=...

@@ -73,6 +73,6 @@ export class OllamaProvider extends BaseHttpProvider {
   }
 
   protected override networkErrorHint(): string {
-    return `Cannot reach Ollama at ${this.baseUrl}. Start it with \`ollama serve\`, or set \`ollama.baseUrl\` in .commitHelper.yml.`;
+    return `Cannot reach Ollama at ${this.baseUrl}. Start it with \`ollama serve\`, or set \`ollama.baseUrl\` in .commilot.yml.`;
   }
 }
