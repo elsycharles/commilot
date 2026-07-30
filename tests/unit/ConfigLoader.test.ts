@@ -1,9 +1,10 @@
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   CONFIG_FILENAME,
+  LEGACY_CONFIG_FILENAME,
   apiKeyEnvVar,
   coerceConfigValue,
   findProjectConfig,
@@ -102,6 +103,24 @@ describe('loadConfig', () => {
     const nested = join(dir, 'packages', 'app');
     mkdirSync(nested, { recursive: true });
     expect(findProjectConfig(nested)).toBeUndefined();
+  });
+
+  it('still reads the old filename, and says so', async () => {
+    writeFileSync(join(dir, LEGACY_CONFIG_FILENAME), 'format:\n  language: es\n', 'utf8');
+    const warn = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    const config = await loadConfig(dir);
+
+    expect(config.format.language).toBe('es');
+    expect(warn.mock.calls.flat().join(' ')).toContain('old configuration name');
+    warn.mockRestore();
+  });
+
+  it('prefers the current filename when both are present', async () => {
+    writeFileSync(join(dir, LEGACY_CONFIG_FILENAME), 'format:\n  language: es\n', 'utf8');
+    writeConfig(dir, 'format:\n  language: fr\n');
+
+    expect((await loadConfig(dir)).format.language).toBe('fr');
   });
 
   it('falls back to built-in defaults when no file exists', async () => {

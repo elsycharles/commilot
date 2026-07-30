@@ -91,7 +91,7 @@ commilot split
 | ------------------------------------- | -------------------------------------------------- |
 | `commilot generate`                   | One commit message for the staged changes          |
 | `commilot split`                      | Group all changes into N commits, one message each |
-| `commilot init`                       | Create `.commitHelper.yml` (and gitignore it)      |
+| `commilot init`                       | Create `.commilot.yml` (and gitignore it)          |
 | `commilot config get <key>`           | Print the effective value of a key                 |
 | `commilot config set <key> <value>`   | Write a value to the project or global config      |
 | `commilot config list`                | Print the full merged configuration                |
@@ -137,10 +137,10 @@ undoes exactly what it created.
 
 ## Configuration
 
-Commilot reads `.commitHelper.yml`. Values are resolved in this order:
+Commilot reads `.commilot.yml`. Values are resolved in this order:
 
 ```
-CLI flags  >  ./.commitHelper.yml  >  ~/.commitHelper.yml  >  built-in defaults
+CLI flags  >  ./.commilot.yml  >  ~/.commilot.yml  >  built-in defaults
 ```
 
 The project file is searched upwards from the current directory and never past the repository root,
@@ -221,7 +221,7 @@ Every provider block accepts the same keys (`apiKey`, `model`, `temperature`, `t
 Two options, in priority order:
 
 1. `export COMMILOT_GEMINI_KEY="..."` — **recommended**, nothing secret ever reaches the repo.
-2. `gemini.apiKey` in `.commitHelper.yml`. `commilot init` adds that file to `.gitignore` for you,
+2. `gemini.apiKey` in `.commilot.yml`. `commilot init` adds that file to `.gitignore` for you,
    and `commilot config get gemini.apiKey` masks the value when printing.
 
 Get a free key at <https://aistudio.google.com/apikey>.
@@ -246,7 +246,7 @@ skips merges, squashes, amends and `-m`/`-F` commits, and does nothing without a
 config → provider → git diff → validate → prompt → AI → parse/repair → review → git add + commit
 ```
 
-1. **ConfigLoader** merges `~/.commitHelper.yml`, `./.commitHelper.yml` and the defaults, validating
+1. **ConfigLoader** merges `~/.commilot.yml`, `./.commilot.yml` and the defaults, validating
    with Zod.
 2. **ProviderFactory** turns `provider:` into a concrete `AIProvider`.
 3. **GitService** reads the diff (`simple-git`); untracked files are rendered as added-file diffs.

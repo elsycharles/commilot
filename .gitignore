@@ -6,5 +6,7 @@ docs/
 .DS_Store
 .env
 
-# Never commit a config that may contain API keys
-.commitHelper.local.yml
+# Never commit a config that may contain API keys.
+# Only .commilot.example.yml is tracked; copy it to .commilot.yml to use it.
+.commilot.yml
+.commilot.local.yml
