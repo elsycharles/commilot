@@ -91,6 +91,13 @@ commilot split
 server — tsup only bundles — but pulling the patched line keeps `npm audit` clean. **Remove the
 override once tsup ships with esbuild 0.28+**, and check `npm audit` and `npm run build` after.
 
+## Dependencies we deliberately hold back
+
+| Package       | Held at | Why                                                                                                                                                                              |
+| ------------- | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `typescript`  | 5.x     | `typescript-eslint` refuses TS 7 outright (`does not support TS 7.0`), and tsup's declaration build crashes on it. Revisit once typescript-eslint ships TS 7 support.            |
+| `@types/node` | 20.x    | `engines.node` is `>=20`. Newer types would let code compile against APIs that do not exist on the oldest Node we claim to support. Bump this only together with `engines.node`. |
+
 ## Branches and pull requests
 
 | Branch                          | Role                                                                              |
