@@ -240,8 +240,10 @@ describe('OllamaProvider', () => {
     expect(url).toBe('http://127.0.0.1:11434/api/chat');
     const body = JSON.parse(init.body as string);
     expect(body.model).toBe('llama3.1');
-    expect(body.format).toBe('json');
     expect(body.stream).toBe(false);
+    // A schema, not plain 'json': local models get the shape wrong, not the
+    // syntax — asked for an array they answer a single object.
+    expect(body.format).toMatchObject({ type: 'object' });
     expect(body.messages[0].role).toBe('system');
   });
 
@@ -289,6 +291,26 @@ describe('OllamaProvider', () => {
     await expect(makeOllama({ maxRetries: 0 }).generateCommitMessage(diff, format)).rejects.toThrow(
       /ollama serve/,
     );
+  });
+
+  it('constrains split output to an array of groups', async () => {
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(SPLIT_JSON)));
+    await makeOllama().generateCommitPlan(multiDiff, format, { maxCommits: 5 });
+
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body.format.type).toBe('array');
+    expect(body.format.items.required).toContain('files');
+    expect(body.format.items.properties.type.enum).toEqual(['dev', 'feat', 'bug']);
+  });
+
+  it('takes the allowed types from the configuration', async () => {
+    const custom = formatConfigSchema.parse({ types: ['chore', 'fix'] });
+    fetchMock.mockImplementation(async () => jsonResponse(ollamaEnvelope(GENERATE_JSON)));
+
+    await makeOllama().generateCommitMessage(diff, custom);
+
+    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
+    expect(body.format.properties.type.enum).toEqual(['chore', 'fix']);
   });
 
   it('splits a diff like any other provider', async () => {
