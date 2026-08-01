@@ -5,10 +5,21 @@ import { statusLetter } from '../types/diff.js';
 /** Strategy chosen for a diff based on its size (spec §6.2). */
 export type TokenBudgetStrategy = 'full' | 'summarised' | 'stats-only';
 
+/**
+ * The shape the answer must take, described without reference to any provider.
+ * Backends that can constrain their output translate it into their own format;
+ * the others simply ignore it and rely on the prompt.
+ */
+export interface ExpectedShape {
+  kind: 'object' | 'array';
+  types: string[];
+}
+
 export interface BuiltPrompt {
   system: string;
   user: string;
   strategy: TokenBudgetStrategy;
+  expects: ExpectedShape;
 }
 
 /** Pick the token budget strategy for a diff of the given size. */
@@ -101,7 +112,12 @@ export class PromptBuilder {
       .join('\n')
       .trim();
 
-    return { system, user: this.buildUserPrompt(diff, strategy), strategy };
+    return {
+      system,
+      user: this.buildUserPrompt(diff, strategy),
+      strategy,
+      expects: { kind: 'object', types: this.format.types },
+    };
   }
 
   /** System + user prompt for split mode. */
@@ -134,7 +150,12 @@ export class PromptBuilder {
       .join('\n')
       .trim();
 
-    return { system, user: this.buildUserPrompt(diff, strategy), strategy };
+    return {
+      system,
+      user: this.buildUserPrompt(diff, strategy),
+      strategy,
+      expects: { kind: 'array', types: this.format.types },
+    };
   }
 
   private buildUserPrompt(diff: ParsedDiff, strategy: TokenBudgetStrategy): string {

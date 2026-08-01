@@ -1,7 +1,30 @@
 import { MalformedResponseError, ProviderActionableError } from '../utils/errors.js';
 import type { ProviderContext } from './AIProvider.js';
 import { BaseHttpProvider, type HttpRequest } from './BaseProvider.js';
-import type { BuiltPrompt } from './PromptBuilder.js';
+import type { BuiltPrompt, ExpectedShape } from './PromptBuilder.js';
+
+/**
+ * Ollama's `format: "json"` guarantees valid JSON but not its shape: asked for
+ * an array of commit groups, llama3.1 answers a single object, and the split
+ * collapses to one group plus a fallback. Passing a JSON schema instead
+ * constrains the decoder, and the same model then assigns every file correctly.
+ */
+function jsonSchemaFor(expects: ExpectedShape): unknown {
+  const group = {
+    type: 'object',
+    properties: {
+      type: { type: 'string', enum: expects.types },
+      scope: { type: 'string' },
+      description: { type: 'string' },
+      files: { type: 'array', items: { type: 'string' } },
+    },
+    required: ['type', 'scope', 'description'],
+  };
+
+  return expects.kind === 'array'
+    ? { type: 'array', items: { ...group, required: [...group.required, 'files'] } }
+    : group;
+}
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
 
@@ -42,8 +65,9 @@ export class OllamaProvider extends BaseHttpProvider {
       body: {
         model: this.ctx.settings.model,
         stream: false,
-        // Ollama's own JSON mode, the local equivalent of responseMimeType.
-        format: 'json',
+        // A schema rather than plain 'json': the shape is what local models
+        // get wrong, not the syntax.
+        format: jsonSchemaFor(prompt.expects),
         options: { temperature: this.ctx.settings.temperature },
         messages: [
           { role: 'system', content: prompt.system },

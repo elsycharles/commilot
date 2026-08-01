@@ -301,9 +301,14 @@ commilot split --all
 ```
 
 No API key, no network call, **no code sent to a third party** — the answer to the confidentiality
-question below. Local models are slower and follow the JSON format less reliably than hosted ones,
-which is what the response-repair layer above is for. Commilot tells you what to do if the server is
-not running or the model is not installed.
+question below. Commilot tells you what to do if the server is not running or the model is not
+installed.
+
+Ollama is driven with a **JSON schema** rather than its plain `json` mode. The difference is not
+cosmetic: asked for an array of commit groups, `llama3.1` answers a single object, and a four-file
+split collapses to one group plus a fallback. With the schema, the same model assigns the files
+correctly. Expect a local model to still be less precise than a hosted one — the response-repair
+layer above is what keeps that safe rather than silent.
 
 ---
 
