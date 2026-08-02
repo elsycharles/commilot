@@ -40,7 +40,12 @@ function writeConfig(target: string, yaml: string): string {
 describe('defaults', () => {
   it('produces a fully populated config with no files present', () => {
     const config = defaultConfig();
-    expect(config.provider).toBe('gemini');
+    // Ollama out of the box: no key, no quota, nothing leaves the machine.
+    expect(config.provider).toBe('ollama');
+    expect(config.ollama.model).toBe('llama3.1');
+    expect(config.ollama.enabled).toBe(true);
+    // Hosted backends stay implemented but switched off.
+    expect(config.gemini.enabled).toBe(false);
     expect(config.gemini.model).toBe('gemini-2.0-flash');
     expect(config.gemini.temperature).toBe(0.3);
     expect(config.format.template).toBe('{type}({scope}) - {description}');
@@ -125,7 +130,7 @@ describe('loadConfig', () => {
 
   it('falls back to built-in defaults when no file exists', async () => {
     const config = await loadConfig(dir);
-    expect(config.provider).toBe('gemini');
+    expect(config.provider).toBe('ollama');
   });
 
   it('reports unreadable YAML clearly', async () => {

@@ -5,10 +5,18 @@ import { GeminiProvider } from '../../src/providers/GeminiProvider.js';
 import { OllamaProvider } from '../../src/providers/OllamaProvider.js';
 import { OpenAIProvider } from '../../src/providers/OpenAIProvider.js';
 import { configSchema } from '../../src/types/config.js';
-import { MissingApiKeyError, UnsupportedProviderError } from '../../src/utils/errors.js';
+import {
+  MissingApiKeyError,
+  ProviderDisabledError,
+  UnsupportedProviderError,
+} from '../../src/utils/errors.js';
 
 function config(overrides: Record<string, unknown> = {}) {
-  return configSchema.parse({ gemini: { apiKey: 'test-key' }, ...overrides });
+  return configSchema.parse({
+    provider: 'gemini',
+    gemini: { apiKey: 'test-key', enabled: true },
+    ...overrides,
+  });
 }
 
 // A developer's real key in the environment must not change these results.
@@ -23,7 +31,28 @@ afterEach(() => {
 });
 
 describe('createProvider', () => {
-  it('returns a Gemini instance for the default provider', () => {
+  it('defaults to Ollama, with no key and nothing to enable', () => {
+    const provider = ProviderFactory.createProvider(configSchema.parse({}));
+    expect(provider).toBeInstanceOf(OllamaProvider);
+    expect(provider.isConfigured()).toBe(true);
+  });
+
+  it('refuses a hosted provider that has not been turned on', () => {
+    const off = configSchema.parse({ provider: 'gemini', gemini: { apiKey: 'k' } });
+    expect(() => ProviderFactory.createProvider(off)).toThrow(ProviderDisabledError);
+    expect(() => ProviderFactory.createProvider(off)).toThrow(/config set gemini.enabled true/);
+  });
+
+  it('uses a model passed for this run only', () => {
+    const provider = ProviderFactory.createProvider(
+      configSchema.parse({}),
+      undefined,
+      'qwen2.5-coder:7b',
+    );
+    expect(provider).toBeInstanceOf(OllamaProvider);
+  });
+
+  it('returns a Gemini instance when it is enabled', () => {
     const provider = ProviderFactory.createProvider(config());
     expect(provider).toBeInstanceOf(GeminiProvider);
     expect(provider.getProviderName()).toBe('Google Gemini');
@@ -49,7 +78,10 @@ describe('createProvider', () => {
   });
 
   it('builds every shipped provider', () => {
-    const keys = { openai: { apiKey: 'sk' }, claude: { apiKey: 'sk-ant' } };
+    const keys = {
+      openai: { apiKey: 'sk', enabled: true },
+      claude: { apiKey: 'sk-ant', enabled: true },
+    };
     expect(ProviderFactory.createProvider(config({ provider: 'openai', ...keys }))).toBeInstanceOf(
       OpenAIProvider,
     );
@@ -67,17 +99,18 @@ describe('createProvider', () => {
     expect(provider.isConfigured()).toBe(true);
   });
 
-  it('still requires a key for the hosted providers', () => {
-    expect(() =>
-      ProviderFactory.createProvider(configSchema.parse({ provider: 'openai' })),
-    ).toThrow(MissingApiKeyError);
-    expect(() =>
-      ProviderFactory.createProvider(configSchema.parse({ provider: 'claude' })),
-    ).toThrow(MissingApiKeyError);
+  it('refuses hosted providers before it ever asks for a key', () => {
+    // Being switched off comes first: telling someone to set a key for a
+    // backend they cannot select would send them down the wrong path.
+    for (const name of ['openai', 'claude']) {
+      expect(() => ProviderFactory.createProvider(configSchema.parse({ provider: name }))).toThrow(
+        ProviderDisabledError,
+      );
+    }
   });
 
-  it('requires an API key', () => {
-    const bare = configSchema.parse({});
+  it('requires an API key once a hosted provider is enabled', () => {
+    const bare = configSchema.parse({ provider: 'gemini', gemini: { enabled: true } });
     expect(() => ProviderFactory.createProvider(bare)).toThrow(MissingApiKeyError);
   });
 });
@@ -87,23 +120,28 @@ describe('listProviders', () => {
     const list = ProviderFactory.listProviders(config());
     expect(list.map((info) => info.name)).toEqual(['gemini', 'openai', 'claude', 'ollama']);
 
-    const gemini = list[0];
-    expect(gemini).toMatchObject({
+    // Enabled by the fixture, so it reports as usable and current.
+    expect(list[0]).toMatchObject({
+      name: 'gemini',
       status: 'available',
+      enabled: true,
       configured: true,
-      isDefault: true,
       isCurrent: true,
       model: 'gemini-2.0-flash',
     });
 
-    expect(list[1]).toMatchObject({ name: 'openai', status: 'available', requiresApiKey: true });
-    expect(list[2]).toMatchObject({ name: 'claude', status: 'available', requiresApiKey: true });
+    // Implemented, but off until the user asks for them.
+    expect(list[1]).toMatchObject({ name: 'openai', enabled: false, configured: false });
+    expect(list[2]).toMatchObject({ name: 'claude', enabled: false, configured: false });
+
     expect(list[3]).toMatchObject({
       name: 'ollama',
       status: 'available',
+      enabled: true,
       requiresApiKey: false,
-      // Local inference needs no credentials, so it is configured by default.
+      // Local inference needs no credentials, so it is ready by default.
       configured: true,
+      isDefault: true,
     });
   });
 

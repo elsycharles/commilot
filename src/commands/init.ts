@@ -16,37 +16,34 @@ export interface InitOptions {
 
 /** The commented starter config written by `commilot init` (spec §4.3). */
 export const CONFIG_TEMPLATE = `# Commilot Configuration
-# Docs: https://github.com/commilot/commilot#configuration
+# Docs: https://github.com/elsycharles/commilot#readme
 
-# AI Provider — which LLM to use for commit generation
-# One of: gemini (default), openai, claude, ollama
-provider: gemini
+# Which model writes your commit messages.
+# Commilot runs on Ollama: local, no API key, no quota, no code leaves your machine.
+provider: ollama
 
-# Provider-specific settings
-# Each provider has its own config block with API key and model.
-# Prefer the environment variable to keep the key out of this file:
-#   COMMILOT_GEMINI_KEY, COMMILOT_OPENAI_KEY, COMMILOT_CLAUDE_KEY
-gemini:
-  apiKey: ""                    # Your Google Gemini API key
-  model: gemini-2.0-flash       # Model to use for analysis
-  temperature: 0.3              # Lower = more deterministic
+ollama:
+  model: llama3.1               # any model you have pulled: ollama list
+  temperature: 0.3              # lower = more predictable
+  # baseUrl: "http://127.0.0.1:11434"
+  # timeoutMs: 120000           # local inference is slower than an API
 
+# ---------------------------------------------------------------------------
+# Hosted providers are implemented but turned off: they need an API key and
+# come with quotas. To use one:
+#     commilot config set gemini.enabled true
+#     export COMMILOT_GEMINI_KEY=...
+#
+# gemini:
+#   enabled: true
+#   model: gemini-2.0-flash
 # openai:
-#   apiKey: ""                  # Your OpenAI API key
+#   enabled: true
 #   model: gpt-4o-mini
-#   temperature: 0.3
-
 # claude:
-#   apiKey: ""                  # Your Anthropic API key
+#   enabled: true
 #   model: claude-sonnet-5
-#   temperature: 0.3
-
-# Runs locally — no API key, and no code leaves your machine.
-# Requires \`ollama serve\` and \`ollama pull <model>\`.
-# ollama:
-#   model: llama3.1
-#   baseUrl: "http://127.0.0.1:11434"
-#   temperature: 0.3
+# ---------------------------------------------------------------------------
 
 # Commit Format
 format:

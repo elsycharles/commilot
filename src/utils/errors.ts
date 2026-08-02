@@ -49,6 +49,18 @@ export class UnsupportedProviderError extends CommilotError {
   }
 }
 
+/**
+ * The backend exists and works, but is switched off in this release. Says how
+ * to switch it on rather than pretending it does not exist.
+ */
+export class ProviderDisabledError extends CommilotError {
+  constructor(provider: string) {
+    super(
+      `Provider '${provider}' is turned off. Commilot runs on Ollama by default: local, no API key, no quota. To use ${provider} anyway: \`commilot config set ${provider}.enabled true\` (needs an API key and is subject to its quotas).`,
+    );
+  }
+}
+
 export class ApiAuthError extends CommilotError {
   constructor(provider: string, detail?: string) {
     super(`Invalid API key for ${provider}. Check your API key in \`.commilot.yml\`.`, {

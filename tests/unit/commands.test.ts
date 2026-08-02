@@ -28,6 +28,7 @@ let stdout: string[];
 
 const CONFIG = `provider: gemini
 gemini:
+  enabled: true
   apiKey: "test-key"
   maxRetries: 0
 `;
@@ -239,8 +240,8 @@ describe('initCommand (AC-13)', () => {
     try {
       await initCommand({}, fresh);
       const config = readFileSync(join(fresh, '.commilot.yml'), 'utf8');
-      expect(config).toContain('provider: gemini');
-      expect(config).toContain('# openai:');
+      expect(config).toContain('provider: ollama');
+      expect(config).toContain('# gemini:');
       expect(readFileSync(join(fresh, '.gitignore'), 'utf8')).toContain('.commilot.yml');
     } finally {
       rmSync(fresh, { recursive: true, force: true });
@@ -320,25 +321,56 @@ describe('config commands', () => {
   });
 });
 
+describe('working with no configuration at all', () => {
+  it('reaches the local provider without a config file or a key', async () => {
+    // The whole point of the Ollama-first default: a fresh clone, no setup.
+    rmSync(join(repo, '.commilot.yml'), { force: true });
+    write('src.ts', 'export const a = 1;\n');
+    git('add', 'src.ts');
+    fetchMock.mockImplementationOnce(
+      async () =>
+        new Response(JSON.stringify({ message: { content: GENERATE_JSON } }), {
+          status: 200,
+          headers: { 'content-type': 'application/json' },
+        }),
+    );
+
+    await generateCommand({ yes: true }, repo);
+
+    expect(log()[0]).toBe('feat(auth) - add jwt token refresh mechanism');
+    const url = String(fetchMock.mock.calls[0]?.[0]);
+    expect(url).toContain('11434/api/chat');
+  });
+
+  it('refuses a hosted provider with a message that says how to turn it on', async () => {
+    rmSync(join(repo, '.commilot.yml'), { force: true });
+    write('src.ts', 'export const a = 1;\n');
+    git('add', 'src.ts');
+
+    await expect(generateCommand({ yes: true, provider: 'gemini' }, repo)).rejects.toThrow(
+      /config set gemini.enabled true/,
+    );
+  });
+});
+
 describe('providersCommand (AC-14)', () => {
   it('lists every shipped provider with its state', async () => {
     await providersCommand(repo);
     const output = plainOutput();
 
-    expect(output).toContain('gemini (default)');
-    expect(output).toContain('API key configured');
-    for (const provider of ['openai', 'claude', 'ollama']) {
+    expect(output).toContain('ollama (default)');
+    expect(output).toContain('Ready — no API key needed');
+    for (const provider of ['gemini', 'openai', 'claude']) {
       expect(output, `${provider} listed`).toContain(provider);
     }
-    expect(output).toContain('Current provider: gemini');
   });
 
   it('says which providers still need a key, and that ollama needs none', async () => {
     await providersCommand(repo);
     const output = plainOutput();
 
-    expect(output).toContain('Ready — no API key needed');
-    expect(output).toContain('COMMILOT_OPENAI_KEY');
+    // Off is not the same as missing a key, and the output must not confuse them.
+    expect(output).toContain('config set openai.enabled true');
     expect(output).not.toContain('Coming in');
   });
 });

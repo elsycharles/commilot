@@ -7,6 +7,9 @@ import { logger } from '../utils/logger.js';
 
 function statusText(info: ProviderInfo): string {
   if (info.status === 'planned') return chalk.dim(`Coming in ${info.version}`);
+  if (!info.enabled) {
+    return chalk.dim(`Off — commilot config set ${info.name}.enabled true`);
+  }
   if (!info.requiresApiKey) return chalk.green('Ready — no API key needed');
   return info.configured
     ? chalk.green('API key configured')
@@ -14,7 +17,7 @@ function statusText(info: ProviderInfo): string {
 }
 
 function marker(info: ProviderInfo): string {
-  if (info.status === 'planned') return chalk.dim('○');
+  if (info.status === 'planned' || !info.enabled) return chalk.dim('○');
   return info.configured ? chalk.green('●') : chalk.yellow('●');
 }
 
@@ -36,7 +39,7 @@ export async function providersCommand(cwd: string = process.cwd()): Promise<voi
 
   for (const info of providers) {
     const label = `${info.name}${info.isDefault ? ' (default)' : ''}`;
-    const model = info.status === 'available' ? info.model : chalk.dim('—');
+    const model = info.status === 'available' && info.enabled ? info.model : chalk.dim('—');
     logger.info(
       `  ${marker(info)} ${pad(label, nameWidth)}${pad(model, modelWidth)}${statusText(info)}`,
     );
@@ -44,6 +47,8 @@ export async function providersCommand(cwd: string = process.cwd()): Promise<voi
 
   logger.blank();
   logger.info(`  Current provider: ${chalk.cyan(config.provider)}`);
-  logger.info(`  Change with: ${chalk.dim('commilot config set provider <name>')}`);
+  logger.info(
+    `  Change the model: ${chalk.dim('commilot config set ollama.model <name>')} ${chalk.dim('or --model <name>')}`,
+  );
   logger.blank();
 }

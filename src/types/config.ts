@@ -12,6 +12,12 @@ const providerBlockSchema = z.object({
   maxRetries: z.number().int().min(0).max(10).default(3),
   /** Optional override of the provider base URL (proxies, self-hosted). */
   baseUrl: z.string().url().optional(),
+  /**
+   * Hosted backends are off by default: they need a key and are metered, and
+   * a quota error on every run is a bad first experience. Their code is intact
+   * and one setting away — see the per-provider defaults below.
+   */
+  enabled: z.boolean().default(false),
 });
 
 export const formatConfigSchema = z.object({
@@ -35,7 +41,7 @@ export const behaviourConfigSchema = z.object({
 });
 
 export const configSchema = z.object({
-  provider: z.string().default('gemini'),
+  provider: z.string().default('ollama'),
   gemini: providerBlockSchema
     .extend({ model: z.string().default('gemini-2.0-flash') })
     .prefault({}),
@@ -43,6 +49,8 @@ export const configSchema = z.object({
   claude: providerBlockSchema.extend({ model: z.string().default('claude-sonnet-5') }).prefault({}),
   ollama: providerBlockSchema
     .extend({
+      // The only backend enabled out of the box: no key, no quota, no network.
+      enabled: z.boolean().default(true),
       model: z.string().default('llama3.1'),
       // Local inference on CPU is far slower than a hosted API.
       timeoutMs: z.number().int().positive().default(120_000),
@@ -77,6 +85,8 @@ export interface ProviderInfo {
   model: string;
   /** False for local backends, which need no credentials. */
   requiresApiKey: boolean;
+  /** Whether this backend may be selected at all. */
+  enabled: boolean;
   configured: boolean;
   isDefault: boolean;
   isCurrent: boolean;

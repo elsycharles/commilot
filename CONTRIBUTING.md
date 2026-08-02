@@ -45,6 +45,22 @@ tests/
   fixtures/       sample diffs and canned AI responses
 ```
 
+## Why Ollama is the only backend enabled
+
+Gemini, OpenAI and Claude are fully implemented and tested, but shipped
+switched off: each needs an API key and comes with a quota, and a quota error
+on the first run is a poor introduction to a tool. Ollama needs neither, and
+nothing leaves the machine.
+
+Turning one back on is a setting, not a code change:
+
+```bash
+commilot config set gemini.enabled true
+```
+
+Keep it that way when adding a backend: implement it, test it, and leave
+`enabled` defaulting to false unless it works with no account and no quota.
+
 ## Adding an AI provider
 
 1. Subclass `BaseHttpProvider` (`src/providers/`) and implement `buildRequest` and `extractText`.
