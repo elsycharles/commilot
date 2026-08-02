@@ -61,6 +61,7 @@ export function buildCli(): Command {
     .option('--type <type>', 'Force the commit type instead of letting the AI pick')
     .option('--scope <scope>', 'Force the commit scope instead of letting the AI pick')
     .option('--provider <name>', 'Override the configured AI provider')
+    .option('--model <name>', 'Use this model for this run (e.g. qwen2.5-coder:7b)')
     .option('-y, --yes', 'Accept the generated message without the interactive review')
     .option('--no-cache', 'Always call the provider, ignoring any cached answer')
     .option('--hook-output <file>', 'Write the message to a file instead of committing')
@@ -77,6 +78,7 @@ export function buildCli(): Command {
     .option('--dry-run', 'Preview the commit plan without committing')
     .option('--max-commits <n>', 'Maximum number of commits to propose', parseMaxCommits)
     .option('--provider <name>', 'Override the configured AI provider')
+    .option('--model <name>', 'Use this model for this run (e.g. qwen2.5-coder:7b)')
     .option('-y, --yes', 'Accept the whole commit plan without the interactive review')
     .option('--no-cache', 'Always call the provider, ignoring any cached answer')
     .action(async (opts, command: Command) => {

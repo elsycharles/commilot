@@ -175,16 +175,19 @@ export async function runCli(
 export function testConfig(baseUrl: string, extraConfig = ''): string {
   return `provider: gemini
 gemini:
+  enabled: true
   apiKey: "test-key"
   model: gemini-2.0-flash
   baseUrl: "${baseUrl}/v1beta"
   maxRetries: 0
 openai:
+  enabled: true
   apiKey: "sk-test"
   model: gpt-4o-mini
   baseUrl: "${baseUrl}/v1"
   maxRetries: 0
 claude:
+  enabled: true
   apiKey: "sk-ant-test"
   model: claude-sonnet-5
   baseUrl: "${baseUrl}/v1"

@@ -6,7 +6,7 @@ import {
   type ProviderInfo,
   type ProviderName,
 } from '../types/config.js';
-import { UnsupportedProviderError } from '../utils/errors.js';
+import { ProviderDisabledError, UnsupportedProviderError } from '../utils/errors.js';
 import type { AIProvider } from './AIProvider.js';
 import { ClaudeProvider } from './ClaudeProvider.js';
 import { GeminiProvider } from './GeminiProvider.js';
@@ -24,7 +24,7 @@ interface ProviderDescriptor {
   create: (ctx: { settings: ProviderBlock; apiKey: string; cacheMinutes: number }) => AIProvider;
 }
 
-export const DEFAULT_PROVIDER: ProviderName = 'gemini';
+export const DEFAULT_PROVIDER: ProviderName = 'ollama';
 
 const REGISTRY: Record<ProviderName, ProviderDescriptor> = {
   gemini: {
@@ -76,13 +76,17 @@ export class ProviderFactory {
    * @throws {UnsupportedProviderError} for unknown or not-yet-released providers.
    * @throws {MissingApiKeyError} when the selected provider has no API key.
    */
-  static createProvider(config: Config, override?: string): AIProvider {
+  static createProvider(config: Config, override?: string, model?: string): AIProvider {
     const name = (override ?? config.provider).trim().toLowerCase();
     if (!isKnownProvider(name) || !REGISTRY[name].available) {
       throw new UnsupportedProviderError(name, availableNames(), plannedNames());
     }
+
     const descriptor = REGISTRY[name];
-    const settings = config[name];
+    if (!config[name].enabled) throw new ProviderDisabledError(name);
+
+    // `--model` overrides the configured model for this run only.
+    const settings = model ? { ...config[name], model } : config[name];
     // A local backend has nothing to authenticate against, so demanding a key
     // would make it unusable.
     const apiKey = descriptor.requiresApiKey
@@ -102,8 +106,10 @@ export class ProviderFactory {
         version: descriptor.version,
         model: config[name].model,
         requiresApiKey: descriptor.requiresApiKey,
+        enabled: config[name].enabled,
         configured:
           descriptor.available &&
+          config[name].enabled &&
           (!descriptor.requiresApiKey ||
             hasApiKey(name, config as unknown as Record<string, unknown>)),
         isDefault: name === DEFAULT_PROVIDER,
