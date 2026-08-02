@@ -117,8 +117,8 @@ describe('init (AC-13)', () => {
       expect(result.exitCode).toBe(0);
 
       const config = readFileSync(join(fresh.dir, '.commilot.yml'), 'utf8');
-      expect(config).toContain('provider: gemini');
-      expect(config).toContain('# openai:');
+      expect(config).toContain('provider: ollama');
+      expect(config).toContain('# gemini:');
       expect(config).toContain('# claude:');
       expect(config).toContain('{type}({scope}) - {description}');
 
@@ -142,11 +142,10 @@ describe('providers (AC-14)', () => {
     const { stdout, exitCode } = await repo.run(['providers']);
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('gemini (default)');
-    expect(stdout).toContain('openai');
-    expect(stdout).toContain('claude');
-    expect(stdout).toContain('ollama');
-    expect(stdout).toContain('API key configured');
+    expect(stdout).toContain('ollama (default)');
+    for (const provider of ['gemini', 'openai', 'claude']) {
+      expect(stdout).toContain(provider);
+    }
     expect(stdout).toContain('Ready — no API key needed');
     expect(stdout).toContain('Current provider: gemini');
   });
@@ -426,7 +425,7 @@ describe('provider selection (AC-06, AC-22)', () => {
     try {
       keyless.write(
         '.commilot.yml',
-        `provider: gemini\ngemini:\n  apiKey: ""\n  baseUrl: "${baseUrl}"\n`,
+        `provider: gemini\ngemini:\n  enabled: true\n  apiKey: ""\n  baseUrl: "${baseUrl}/v1beta"\n`,
       );
       keyless.write('src.ts', 'export const a = 1;\n');
       keyless.git('add', 'src.ts');
@@ -446,7 +445,7 @@ describe('provider selection (AC-06, AC-22)', () => {
     try {
       envRepo.write(
         '.commilot.yml',
-        `provider: gemini\ngemini:\n  apiKey: ""\n  baseUrl: "${baseUrl}"\n  maxRetries: 0\n`,
+        `provider: gemini\ngemini:\n  enabled: true\n  apiKey: ""\n  baseUrl: "${baseUrl}/v1beta"\n  maxRetries: 0\n`,
       );
       envRepo.write('src.ts', 'export const a = 1;\n');
       envRepo.git('add', 'src.ts');

@@ -13,6 +13,8 @@ export interface CommonOptions {
   all?: boolean;
   dryRun?: boolean;
   provider?: string;
+  /** Use this model for this run, whatever the config says. */
+  model?: string;
   verbose?: boolean;
   /** Accept the AI proposal without the interactive review. */
   yes?: boolean;
@@ -86,7 +88,7 @@ export async function preparePipeline(
 
   const config = await loadConfig(cwd);
   const providerName = ProviderFactory.resolveProviderName(config, opts.provider);
-  const provider = ProviderFactory.createProvider(config, opts.provider);
+  const provider = ProviderFactory.createProvider(config, opts.provider, opts.model);
 
   const source = resolveSource(opts, fallbackSource);
 

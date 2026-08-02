@@ -3,14 +3,14 @@
 # This is the TEMPLATE, and the only one tracked by git. Copy it before use:
 #     cp .commilot.example.yml .commilot.yml
 # .commilot.yml is gitignored, so a key put there can never be committed.
-# Better still, leave apiKey empty and export COMMILOT_GEMINI_KEY.
 
-provider: gemini
+provider: ollama
 
-gemini:
-  apiKey: ""
-  model: gemini-2.0-flash
+ollama:
+  model: llama3.1
   temperature: 0.3
+
+# Hosted providers are off by default; see the README to turn one on.
 
 format:
   template: "{type}({scope}) - {description}"

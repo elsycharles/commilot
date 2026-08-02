@@ -2,349 +2,258 @@
 
 > _commit + copilot_
 
-Your AI copilot for git commits — generates structured messages and intelligently **splits large diffs into clean, scoped commits**. Powered by Google Gemini (ChatGPT & Claude coming soon).
+Écrit vos messages de commit, et **découpe un gros diff en plusieurs commits propres**.
+
+Tourne en local avec [Ollama](https://ollama.com) : **pas de clé API, pas de quota, votre code ne quitte pas votre machine.**
 
 ```
 $ commilot split
 
-  • Analysing all changes... 12 files changed, +398 -47
-  ✔ Split into logical commits (provider: gemini)
+  ┌── Commit Plan (3 commits) ──────────────────────────────────────┐
+  │                                                                 │
+  │   1. feat(auth) - add auth middleware to protect routes         │
+  │      A  src/middleware/auth.js  (+42)                           │
+  │                                                                 │
+  │   2. feat(api) - add users endpoint                             │
+  │      A  src/routes/users.js  (+28)                              │
+  │                                                                 │
+  │   3. dev(config) - tighten eslint rules                         │
+  │      M  .eslintrc.json  (+8, -4)                                │
+  │                                                                 │
+  └─────────────────────────────────────────────────────────────────┘
 
-  ┌── Commit Plan (3 commits) ─────────────────────────┐
-  │                                                    │
-  │  1. feat(auth) - add login endpoint                │
-  │     A  src/controllers/auth.controller.ts  (+89)   │
-  │     M  src/services/auth.service.ts   (+45, -2)    │
-  │                                                    │
-  │  2. feat(dashboard) - add user stats widget        │
-  │     A  src/components/stats-widget.tsx    (+112)   │
-  │                                                    │
-  │  3. dev(config) - update eslint and prettier rules │
-  │     M  .eslintrc.json                  (+8, -4)    │
-  │                                                    │
-  └────────────────────────────────────────────────────┘
-
-  ? Review commit 1/3: feat(auth) - add login endpoint
-    ❯ ✔ Accept
-      ✎ Edit message
-      ⇅ Merge with next commit
-      ⤫ Skip this commit
-      ✖ Cancel all
+  ? Review commit 1/3 : ❯ Accept · Edit · Merge with next · Skip · Cancel
 ```
 
 ---
 
-## Why Commilot
+## 1. Installer
 
-Other AI commit tools write **one** message for everything you have staged. Commilot's core
-differentiator is **smart splitting**: it reads the whole diff, groups files that belong together,
-and proposes a separate commit per group — automating what you would otherwise do by hand with
-`git add -p`.
+**Ollama** (une seule fois) :
 
-|                                 | Commilot            | aicommits       | OpenCommit      |
-| ------------------------------- | ------------------- | --------------- | --------------- |
-| Single commit generation        | ✅                  | ✅              | ✅              |
-| Smart commit splitting          | ✅ **core feature** | ❌              | ❌              |
-| Custom format template          | ✅ YAML             | type only       | limited         |
-| Scopes registry                 | ✅                  | ❌              | ❌              |
-| Interactive edit / merge / skip | ✅                  | accept / reject | accept / reject |
-| Multi-provider switching        | ✅ one config line  | ❌              | limited         |
+```bash
+brew install ollama          # ou : https://ollama.com/download
+ollama serve                 # laisser tourner dans un terminal
+ollama pull llama3.1         # ~5 Go, une seule fois
+```
+
+**Commilot** :
+
+```bash
+git clone https://github.com/elsycharles/commilot
+cd commilot
+npm ci && npm run build
+npm link                     # rend la commande `commilot` disponible partout
+```
+
+> Pas envie de `npm link` ? Utilisez le chemin complet :
+> `node /chemin/vers/commilot/dist/index.js` — tout fonctionne pareil.
+
+Vérifiez :
+
+```bash
+commilot --version
+commilot providers           # ollama doit afficher « Ready »
+```
 
 ---
 
-## Install
+## 2. Utiliser
+
+Aucune configuration n'est nécessaire. Dans n'importe quel dépôt git :
+
+### Un message pour ce que vous avez indexé
 
 ```bash
-npm install -g commilot
-```
-
-Requires **Node.js 20+** and `git` on your `PATH`. Works on macOS, Linux and Windows.
-
-Or run it without installing:
-
-```bash
-npx commilot generate
-```
-
-## Quick start
-
-```bash
-# 1. Create a config in your project
-commilot init
-
-# 2. Add your Gemini API key (the free tier is plenty) — https://aistudio.google.com/apikey
-export COMMILOT_GEMINI_KEY="your-key"
-
-# 3. Stage something and let Commilot write the message
 git add .
 commilot generate
+```
 
-# …or let it split everything into separate, coherent commits
+### Découper un travail en plusieurs commits
+
+```bash
 commilot split
 ```
 
----
+Commilot lit **tous** vos changements, les regroupe par sujet, et propose un commit par groupe. Vous relisez chacun avant qu'il ne soit créé.
 
-## Commands
+### Voir sans rien créer
 
-| Command                               | Description                                        |
-| ------------------------------------- | -------------------------------------------------- |
-| `commilot generate`                   | One commit message for the staged changes          |
-| `commilot split`                      | Group all changes into N commits, one message each |
-| `commilot init`                       | Create `.commilot.yml` (and gitignore it)          |
-| `commilot config get <key>`           | Print the effective value of a key                 |
-| `commilot config set <key> <value>`   | Write a value to the project or global config      |
-| `commilot config list`                | Print the full merged configuration                |
-| `commilot providers`                  | List AI providers and their status                 |
-| `commilot hook install` / `uninstall` | Manage the `prepare-commit-msg` git hook           |
+```bash
+commilot generate --dry-run
+commilot split --dry-run
+```
 
-### `commilot generate`
-
-| Flag                   | Description                                        |
-| ---------------------- | -------------------------------------------------- |
-| `--staged`             | Analyse staged changes (default)                   |
-| `--all`                | Analyse staged + unstaged + untracked changes      |
-| `--dry-run`            | Print the proposed message, change nothing         |
-| `--type <type>`        | Force the type instead of letting the AI choose    |
-| `--scope <scope>`      | Force the scope instead of letting the AI choose   |
-| `--provider <name>`    | Override the configured provider for this run      |
-| `-y, --yes`            | Accept the proposal without the interactive review |
-| `--hook-output <file>` | Write the message to a file instead of committing  |
-
-In the review prompt you can **accept**, **edit**, **regenerate** or **cancel**.
-
-### `commilot split`
-
-| Flag                | Description                                             |
-| ------------------- | ------------------------------------------------------- |
-| `--all`             | Analyse staged + unstaged + untracked changes (default) |
-| `--staged`          | Only split what is already staged                       |
-| `--dry-run`         | Print the commit plan, change nothing                   |
-| `--max-commits <n>` | Cap the number of proposed commits                      |
-| `--provider <name>` | Override the configured provider for this run           |
-| `-y, --yes`         | Accept the whole plan without reviewing each commit     |
-
-Each commit is reviewed on its own: **accept**, **edit**, **merge with the next one**, **skip**, or
-**cancel everything**. Commits are then created sequentially, staging exactly the files of each
-group. If something fails halfway through, Commilot prints the `git reset --soft <sha>` command that
-undoes exactly what it created.
-
-### Global flags
-
-`--verbose` (debug output, including raw AI responses), `--quiet` (errors only), `-v, --version`.
+Le premier réflexe recommandé. La réponse est mise en cache une heure, donc le vrai lancement qui suit est instantané.
 
 ---
 
-## Configuration
+## 3. Pendant la relecture
 
-Commilot reads `.commilot.yml`. Values are resolved in this order:
+| Choix               | Effet                                       |
+| ------------------- | ------------------------------------------- |
+| **Accept**          | crée le commit                              |
+| **Edit**            | corrige le type, le scope ou la description |
+| **Regenerate**      | redemande une proposition _(generate)_      |
+| **Merge with next** | fusionne avec le commit suivant _(split)_   |
+| **Skip**            | laisse ces fichiers de côté _(split)_       |
+| **Cancel**          | tout annuler, rien n'est créé               |
 
+**Rien n'est jamais committé sans votre accord.** Et si un `split` échoue en cours de route, Commilot affiche la commande exacte pour revenir en arrière.
+
+---
+
+## 4. Changer de modèle
+
+Tous les modèles Ollama fonctionnent. Voir les vôtres : `ollama list`.
+
+```bash
+# pour un seul lancement
+commilot generate --model qwen2.5-coder:7b
+
+# de façon permanente
+commilot config set ollama.model qwen2.5-coder:7b
 ```
-CLI flags  >  ./.commilot.yml  >  ~/.commilot.yml  >  built-in defaults
+
+Quelques repères :
+
+| Modèle             | Taille | Remarque                             |
+| ------------------ | ------ | ------------------------------------ |
+| `llama3.1`         | ~5 Go  | défaut, bon compromis                |
+| `qwen2.5-coder:7b` | ~5 Go  | meilleur sur le découpage et le code |
+| `llama3.2:3b`      | ~2 Go  | plus rapide, moins précis            |
+
+Un modèle local reste moins précis qu'un modèle hébergé : il vous arrivera de voir un commit `misc` regroupant ce qu'il n'a pas su classer. **Aucun fichier n'est jamais perdu** — ça, c'est garanti, contrairement à la qualité du découpage.
+
+---
+
+## 5. Adapter à votre projet
+
+```bash
+commilot init
 ```
 
-The project file is searched upwards from the current directory and never past the repository root,
-so it works from any subdirectory. Nested keys merge; **lists replace**.
+Crée `.commilot.yml` (ajouté à votre `.gitignore`). Le réglage le plus utile, ce sont **vos** scopes :
 
 ```yaml
-# AI Provider — which LLM to use for commit generation
-# One of: gemini (default), openai, claude, ollama
-provider: gemini
+provider: ollama
 
-gemini:
-  apiKey: '' # Prefer COMMILOT_GEMINI_KEY instead
-  model: gemini-2.0-flash
-  temperature: 0.3
-
-openai:
-  apiKey: '' # or COMMILOT_OPENAI_KEY
-  model: gpt-4o-mini
-
-claude:
-  apiKey: '' # or COMMILOT_CLAUDE_KEY
-  model: claude-sonnet-5
-
-ollama: # local — no API key, nothing leaves your machine
+ollama:
   model: llama3.1
-  baseUrl: 'http://127.0.0.1:11434'
+  temperature: 0.3 # plus bas = plus prévisible
 
 format:
   template: '{type}({scope}) - {description}'
-  types: [dev, feat, bug]
-  scopes: [] # e.g. [login, auth, dashboard] — empty = the AI infers
+  types: [dev, feat, bug] # ou [feat, fix, chore, docs]
+  scopes: [auth, api, ui] # ⚠️ les vôtres — vide = l'IA invente
   descriptionMaxLength: 72
-  language: en # ISO 639-1; the AI writes in this language
+  language: fr # messages en français
 
 behaviour:
-  autoStage: false # git add -A before analysing
-  maxDiffLines: 5000 # reject anything bigger
-  excludePatterns: # never sent to the AI
+  excludePatterns:
     - 'package-lock.json'
-    - 'yarn.lock'
+    - '.env*' # ⚠️ à garder si vous activez un provider distant
     - '*.min.js'
-    - '*.min.css'
   splitMaxCommits: 10
   confirmBeforeCommit: true
+  cacheMinutes: 60 # réutilise la réponse d'un diff identique
 ```
 
-### Reference
-
-| Key                  | Type   | Default                  | Notes                                                     |
-| -------------------- | ------ | ------------------------ | --------------------------------------------------------- |
-| `provider`           | string | `gemini`                 | `gemini`, `openai`, `claude` or `ollama`                  |
-| `gemini.apiKey`      | string | —                        | Or `COMMILOT_GEMINI_KEY`                                  |
-| `gemini.model`       | string | `gemini-2.0-flash`       | Any Gemini model id                                       |
-| `gemini.temperature` | 0–1    | `0.3`                    | Lower = more deterministic                                |
-| `gemini.timeoutMs`   | number | `30000`                  | Per request                                               |
-| `gemini.maxRetries`  | number | `3`                      | Backoff 1s / 3s / 9s on 429, 5xx and timeouts             |
-| `gemini.baseUrl`     | url    | Google endpoint          | For proxies                                               |
-| `openai.model`       | string | `gpt-4o-mini`            | Any chat-completions model                                |
-| `claude.model`       | string | `claude-sonnet-5`        | Any Messages API model                                    |
-| `ollama.model`       | string | `llama3.1`               | Must be pulled first: `ollama pull <model>`               |
-| `ollama.baseUrl`     | url    | `http://127.0.0.1:11434` | Where your Ollama server listens                          |
-| `ollama.timeoutMs`   | number | `120000`                 | Higher than the hosted default: local inference is slower |
-
-Every provider block accepts the same keys (`apiKey`, `model`, `temperature`, `timeoutMs`, `maxRetries`, `baseUrl`); only the defaults differ.
-| `format.template` | string | `{type}({scope}) - {description}` | `{type}`, `{scope}`, `{description}` |
-| `format.types` | string[] | `[dev, feat, bug]` | The AI is constrained to these |
-| `format.scopes` | string[] | `[]` | Empty = the AI infers a scope |
-| `format.descriptionMaxLength` | number | `72` | Longer answers are truncated at a word boundary |
-| `format.language` | string | `en` | ISO 639-1 |
-| `behaviour.autoStage` | bool | `false` | |
-| `behaviour.maxDiffLines` | number | `5000` | Above this the run is rejected |
-| `behaviour.excludePatterns` | string[] | lockfiles, minified | Globs, matched at any depth |
-| `behaviour.splitMaxCommits` | number | `10` | |
-| `behaviour.confirmBeforeCommit` | bool | `true` | Set `false` to skip the final y/n |
-| `behaviour.cacheMinutes` | number | `60` | Reuse the answer for an identical diff instead of spending a request. `0` disables. Override per run with `--no-cache`, or globally with `COMMILOT_CACHE_MINUTES` |
-
-### API key
-
-Two options, in priority order:
-
-1. `export COMMILOT_GEMINI_KEY="..."` — **recommended**, nothing secret ever reaches the repo.
-2. `gemini.apiKey` in `.commilot.yml`. `commilot init` adds that file to `.gitignore` for you,
-   and `commilot config get gemini.apiKey` masks the value when printing.
-
-Get a free key at <https://aistudio.google.com/apikey>.
+Remplir `scopes` est ce qui change le plus la qualité des messages. Sans cette liste, chaque commit invente son propre vocabulaire.
 
 ---
 
-## Git hook
+## 6. Toutes les commandes
 
-```bash
-commilot hook install     # writes .git/hooks/prepare-commit-msg
-```
+| Commande                           | Rôle                                              |
+| ---------------------------------- | ------------------------------------------------- |
+| `commilot generate`                | un message pour les changements indexés           |
+| `commilot split`                   | découpe tous les changements en plusieurs commits |
+| `commilot init`                    | crée `.commilot.yml`                              |
+| `commilot config get\|set\|list`   | lit ou modifie la configuration                   |
+| `commilot providers`               | état des backends                                 |
+| `commilot hook install\|uninstall` | branche Commilot sur `git commit`                 |
 
-A plain `git commit` (no `-m`) then opens your editor pre-filled with a Commilot message. The hook
-skips merges, squashes, amends and `-m`/`-F` commits, and does nothing without a terminal.
-`commilot hook uninstall` removes it — and refuses to touch a hook it did not create.
+**Options utiles**
 
----
-
-## How it works
-
-```
-config → provider → git diff → validate → prompt → AI → parse/repair → review → git add + commit
-```
-
-1. **ConfigLoader** merges `~/.commilot.yml`, `./.commilot.yml` and the defaults, validating
-   with Zod.
-2. **ProviderFactory** turns `provider:` into a concrete `AIProvider`.
-3. **GitService** reads the diff (`simple-git`); untracked files are rendered as added-file diffs.
-4. **DiffValidator** parses it (`parse-diff`), drops excluded and binary files and enforces
-   `maxDiffLines`.
-5. **PromptBuilder** builds provider-agnostic prompts within a token budget:
-
-   | Changed lines | What is sent                                 |
-   | ------------- | -------------------------------------------- |
-   | ≤ 500         | the full diff                                |
-   | 501 – 2000    | file stats + the first 10 lines of each hunk |
-   | 2001 – 5000   | file names and stats only                    |
-   | > 5000        | rejected                                     |
-
-6. **ResponseParser** strips markdown fences, validates with Zod and repairs: unknown types map to
-   the closest allowed one, over-long descriptions are truncated at a word boundary, duplicated file
-   assignments keep their first group, and files the model forgot land in a fallback commit — so
-   **no file is ever lost or committed twice**.
-7. **ReviewUI** asks before anything is written.
-8. **GitService** stages each group's files and commits.
-
-### Providers
-
-| Provider | Default model      | API key  | Notes                                       |
-| -------- | ------------------ | -------- | ------------------------------------------- |
-| `gemini` | `gemini-2.0-flash` | required | Default. Generous free tier                 |
-| `openai` | `gpt-4o-mini`      | required | Chat Completions, JSON mode                 |
-| `claude` | `claude-sonnet-5`  | required | Messages API, answer prefilled to bare JSON |
-| `ollama` | `llama3.1`         | **none** | Runs locally — no code leaves your machine  |
-
-Switching is one line:
-
-```bash
-commilot config set provider ollama     # persistent
-commilot generate --provider claude     # just this run
-```
-
-Each provider keeps its own block, so several can be configured at once and you swap freely. The
-prompt is identical for all four — only the transport differs.
-
-Adding another means implementing a single interface (`generateCommitMessage`, `generateCommitPlan`,
-`validateResponse`, `getProviderName`, `isConfigured`) — the pipeline and the prompts stay the same.
-
-### Running fully offline with Ollama
-
-```bash
-ollama serve                 # start the local server
-ollama pull llama3.1         # once per model
-commilot config set provider ollama
-commilot split --all
-```
-
-No API key, no network call, **no code sent to a third party** — the answer to the confidentiality
-question below. Commilot tells you what to do if the server is not running or the model is not
-installed.
-
-Ollama is driven with a **JSON schema** rather than its plain `json` mode. The difference is not
-cosmetic: asked for an array of commit groups, `llama3.1` answers a single object, and a four-file
-split collapses to one group plus a fallback. With the schema, the same model assigns the files
-correctly. Expect a local model to still be less precise than a hosted one — the response-repair
-layer above is what keeps that safe rather than silent.
+| Option               | Effet                                               |
+| -------------------- | --------------------------------------------------- |
+| `--dry-run`          | affiche sans rien créer                             |
+| `--all`              | inclut les fichiers non indexés (défaut de `split`) |
+| `--staged`           | seulement l'index (défaut de `generate`)            |
+| `--model <nom>`      | change de modèle pour ce lancement                  |
+| `--type` / `--scope` | impose le type ou le scope                          |
+| `--max-commits <n>`  | plafonne le nombre de commits                       |
+| `-y, --yes`          | accepte sans relecture                              |
+| `--no-cache`         | force un nouvel appel                               |
+| `--verbose`          | détaille ce qui se passe                            |
 
 ---
 
-## Exit codes
+## 7. En cas de problème
 
-`0` on success or user cancellation, `1` on any error. Every failure prints an actionable message:
+| Message                                  | Que faire                                                             |
+| ---------------------------------------- | --------------------------------------------------------------------- |
+| `No staged changes detected`             | `git add` d'abord, ou utilisez `--all`                                |
+| `Cannot reach Ollama…`                   | lancez `ollama serve`                                                 |
+| `Ollama does not have the model 'x'`     | `ollama pull x`                                                       |
+| `Interactive review requires a terminal` | ajoutez `--yes` ou `--dry-run`                                        |
+| `Diff exceeds maximum size`              | committez une partie à la main, ou augmentez `behaviour.maxDiffLines` |
 
-| Error                                                    | Message                                                      |
-| -------------------------------------------------------- | ------------------------------------------------------------ |
-| `NotGitRepoError`                                        | Not a git repository.                                        |
-| `NoDiffError`                                            | No staged changes detected — stage something or use `--all`. |
-| `DiffTooLargeError`                                      | Diff exceeds `behaviour.maxDiffLines`.                       |
-| `MissingApiKeyError`                                     | Set `<provider>.apiKey` or `COMMILOT_<PROVIDER>_KEY`.        |
-| `UnsupportedProviderError`                               | Lists available and upcoming providers.                      |
-| `ApiAuthError` / `ApiRateLimitError` / `ApiTimeoutError` | What failed and what to do about it.                         |
-| `MalformedResponseError`                                 | The AI answer could not be parsed; retry with `--verbose`.   |
-| `ConfigValidationError`                                  | Which key is wrong.                                          |
-| `GitOperationError`                                      | The underlying git failure.                                  |
+Ajoutez `--verbose` pour voir les échanges avec le modèle.
 
 ---
 
-## Development
+## 8. Utiliser un modèle distant _(optionnel)_
+
+Gemini, ChatGPT et Claude sont implémentés mais **désactivés** : ils demandent une clé API, imposent des quotas, et envoient votre diff à un tiers. Ollama évite les trois.
+
+Pour en activer un malgré tout :
 
 ```bash
-npm install
-npm run build        # tsup → dist/
-npm test             # vitest (unit + e2e)
-npm run coverage     # thresholds enforced at 80%
-npm run lint
-npm run typecheck
-npm link             # use your local build as the global `commilot`
+commilot config set gemini.enabled true
+export COMMILOT_GEMINI_KEY="votre-clé"
+commilot generate --provider gemini
 ```
 
-E2E tests run the built CLI as a subprocess against a fake provider server, so no API key or network
-access is needed. See [CONTRIBUTING.md](CONTRIBUTING.md).
+| Provider | Modèle par défaut  | Clé                           |
+| -------- | ------------------ | ----------------------------- |
+| `ollama` | `llama3.1`         | aucune — **actif par défaut** |
+| `gemini` | `gemini-2.0-flash` | `COMMILOT_GEMINI_KEY`         |
+| `openai` | `gpt-4o-mini`      | `COMMILOT_OPENAI_KEY`         |
+| `claude` | `claude-sonnet-5`  | `COMMILOT_CLAUDE_KEY`         |
+
+Le prompt est identique pour les quatre : seul le transport change.
+
+**Si vous activez un provider distant**, votre diff quitte votre machine. Vérifiez que c'est autorisé pour ce code, et gardez `.env*` dans `excludePatterns`.
+
+---
+
+## Comment ça marche
+
+```
+config → provider → git diff → validation → prompt → IA → analyse → relecture → commit
+```
+
+Ce qui mérite d'être connu :
+
+- **Rien n'est perdu.** Si le modèle oublie des fichiers, ils atterrissent dans un commit de repli plutôt que d'être ignorés. Si un fichier est cité deux fois, seule la première affectation compte.
+- **Ollama est piloté par un schéma JSON.** Sans cela, un modèle local répond un objet unique là où il faudrait un tableau, et le découpage s'effondre.
+- **Les gros diffs sont résumés** plutôt que tronqués au hasard : diff complet jusqu'à 500 lignes, hunks raccourcis jusqu'à 2000, statistiques seules au-delà, refus passé 5000.
+- **Les clés API ne sont jamais journalisées**, même avec `--verbose`, et `config get` les masque.
+
+---
+
+## Développement
+
+```bash
+npm test           # 249 tests
+npm run coverage   # seuils à 80 %
+npm run lint && npm run typecheck
+```
+
+Les tests n'appellent jamais une vraie API : un faux serveur rejoue les réponses de chaque backend. Voir [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT — voir [LICENSE](LICENSE).
