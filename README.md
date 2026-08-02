@@ -2,9 +2,9 @@
 
 > _commit + copilot_
 
-Écrit vos messages de commit, et **découpe un gros diff en plusieurs commits propres**.
+Writes your commit messages, and **splits a large diff into several clean commits**.
 
-Tourne en local avec [Ollama](https://ollama.com) : **pas de clé API, pas de quota, votre code ne quitte pas votre machine.**
+Runs locally on [Ollama](https://ollama.com): **no API key, no quota, your code never leaves your machine.**
 
 ```
 $ commilot split
@@ -22,238 +22,238 @@ $ commilot split
   │                                                                 │
   └─────────────────────────────────────────────────────────────────┘
 
-  ? Review commit 1/3 : ❯ Accept · Edit · Merge with next · Skip · Cancel
+  ? Review commit 1/3: ❯ Accept · Edit · Merge with next · Skip · Cancel
 ```
 
 ---
 
-## 1. Installer
+## 1. Install
 
-**Ollama** (une seule fois) :
+**Ollama** (once):
 
 ```bash
-brew install ollama          # ou : https://ollama.com/download
-ollama serve                 # laisser tourner dans un terminal
-ollama pull llama3.1         # ~5 Go, une seule fois
+brew install ollama          # or: https://ollama.com/download
+ollama serve                 # leave it running in a terminal
+ollama pull llama3.1         # ~5 GB, once
 ```
 
-**Commilot** :
+**Commilot**:
 
 ```bash
 git clone https://github.com/elsycharles/commilot
 cd commilot
 npm ci && npm run build
-npm link                     # rend la commande `commilot` disponible partout
+npm link                     # makes `commilot` available everywhere
 ```
 
-> Pas envie de `npm link` ? Utilisez le chemin complet :
-> `node /chemin/vers/commilot/dist/index.js` — tout fonctionne pareil.
+> Would rather not `npm link`? Use the full path instead:
+> `node /path/to/commilot/dist/index.js` — everything works the same.
 
-Vérifiez :
+Check it:
 
 ```bash
 commilot --version
-commilot providers           # ollama doit afficher « Ready »
+commilot providers           # ollama should say "Ready"
 ```
 
 ---
 
-## 2. Utiliser
+## 2. Use it
 
-Aucune configuration n'est nécessaire. Dans n'importe quel dépôt git :
+No configuration needed. In any git repository:
 
-### Un message pour ce que vous avez indexé
+### One message for what you staged
 
 ```bash
 git add .
 commilot generate
 ```
 
-### Découper un travail en plusieurs commits
+### Split your work into several commits
 
 ```bash
 commilot split
 ```
 
-Commilot lit **tous** vos changements, les regroupe par sujet, et propose un commit par groupe. Vous relisez chacun avant qu'il ne soit créé.
+Commilot reads **all** your changes, groups them by subject, and proposes one commit per group. You review each one before it is created.
 
-### Voir sans rien créer
+### Look without creating anything
 
 ```bash
 commilot generate --dry-run
 commilot split --dry-run
 ```
 
-Le premier réflexe recommandé. La réponse est mise en cache une heure, donc le vrai lancement qui suit est instantané.
+The recommended first move. The answer is cached for an hour, so the real run right after is instant.
 
 ---
 
-## 3. Pendant la relecture
+## 3. During the review
 
-| Choix               | Effet                                       |
-| ------------------- | ------------------------------------------- |
-| **Accept**          | crée le commit                              |
-| **Edit**            | corrige le type, le scope ou la description |
-| **Regenerate**      | redemande une proposition _(generate)_      |
-| **Merge with next** | fusionne avec le commit suivant _(split)_   |
-| **Skip**            | laisse ces fichiers de côté _(split)_       |
-| **Cancel**          | tout annuler, rien n'est créé               |
+| Choice              | What it does                               |
+| ------------------- | ------------------------------------------ |
+| **Accept**          | creates the commit                         |
+| **Edit**            | fix the type, the scope or the description |
+| **Regenerate**      | ask for another proposal _(generate)_      |
+| **Merge with next** | fold into the next commit _(split)_        |
+| **Skip**            | leave those files alone _(split)_          |
+| **Cancel**          | abort everything, nothing is created       |
 
-**Rien n'est jamais committé sans votre accord.** Et si un `split` échoue en cours de route, Commilot affiche la commande exacte pour revenir en arrière.
+**Nothing is ever committed without your say-so.** And if a `split` fails midway, Commilot prints the exact command to undo it.
 
 ---
 
-## 4. Changer de modèle
+## 4. Change the model
 
-Tous les modèles Ollama fonctionnent. Voir les vôtres : `ollama list`.
+Every Ollama model works. See yours with `ollama list`.
 
 ```bash
-# pour un seul lancement
+# for a single run
 commilot generate --model qwen2.5-coder:7b
 
-# de façon permanente
+# permanently
 commilot config set ollama.model qwen2.5-coder:7b
 ```
 
-Quelques repères :
+Some reference points:
 
-| Modèle             | Taille | Remarque                             |
-| ------------------ | ------ | ------------------------------------ |
-| `llama3.1`         | ~5 Go  | défaut, bon compromis                |
-| `qwen2.5-coder:7b` | ~5 Go  | meilleur sur le découpage et le code |
-| `llama3.2:3b`      | ~2 Go  | plus rapide, moins précis            |
+| Model              | Size  | Notes                           |
+| ------------------ | ----- | ------------------------------- |
+| `llama3.1`         | ~5 GB | default, good balance           |
+| `qwen2.5-coder:7b` | ~5 GB | better at splitting and at code |
+| `llama3.2:3b`      | ~2 GB | faster, less precise            |
 
-Un modèle local reste moins précis qu'un modèle hébergé : il vous arrivera de voir un commit `misc` regroupant ce qu'il n'a pas su classer. **Aucun fichier n'est jamais perdu** — ça, c'est garanti, contrairement à la qualité du découpage.
+A local model is less precise than a hosted one: you will sometimes see a `misc` commit holding whatever it could not classify. **No file is ever lost** — that part is guaranteed, unlike the quality of the split.
 
 ---
 
-## 5. Adapter à votre projet
+## 5. Fit it to your project
 
 ```bash
 commilot init
 ```
 
-Crée `.commilot.yml` (ajouté à votre `.gitignore`). Le réglage le plus utile, ce sont **vos** scopes :
+Creates `.commilot.yml` (and adds it to your `.gitignore`). The setting worth your time is **your** scopes:
 
 ```yaml
 provider: ollama
 
 ollama:
   model: llama3.1
-  temperature: 0.3 # plus bas = plus prévisible
+  temperature: 0.3 # lower = more predictable
 
 format:
   template: '{type}({scope}) - {description}'
-  types: [dev, feat, bug] # ou [feat, fix, chore, docs]
-  scopes: [auth, api, ui] # ⚠️ les vôtres — vide = l'IA invente
+  types: [dev, feat, bug] # or [feat, fix, chore, docs]
+  scopes: [auth, api, ui] # ⚠️ yours — empty means the AI invents them
   descriptionMaxLength: 72
-  language: fr # messages en français
+  language: en # commit messages in this language
 
 behaviour:
   excludePatterns:
     - 'package-lock.json'
-    - '.env*' # ⚠️ à garder si vous activez un provider distant
+    - '.env*' # ⚠️ keep this if you enable a hosted provider
     - '*.min.js'
   splitMaxCommits: 10
   confirmBeforeCommit: true
-  cacheMinutes: 60 # réutilise la réponse d'un diff identique
+  cacheMinutes: 60 # reuse the answer for an identical diff
 ```
 
-Remplir `scopes` est ce qui change le plus la qualité des messages. Sans cette liste, chaque commit invente son propre vocabulaire.
+Filling in `scopes` is what improves message quality the most. Without that list, every commit invents its own vocabulary.
 
 ---
 
-## 6. Toutes les commandes
+## 6. All the commands
 
-| Commande                           | Rôle                                              |
-| ---------------------------------- | ------------------------------------------------- |
-| `commilot generate`                | un message pour les changements indexés           |
-| `commilot split`                   | découpe tous les changements en plusieurs commits |
-| `commilot init`                    | crée `.commilot.yml`                              |
-| `commilot config get\|set\|list`   | lit ou modifie la configuration                   |
-| `commilot providers`               | état des backends                                 |
-| `commilot hook install\|uninstall` | branche Commilot sur `git commit`                 |
+| Command                            | What it does                           |
+| ---------------------------------- | -------------------------------------- |
+| `commilot generate`                | one message for the staged changes     |
+| `commilot split`                   | split all changes into several commits |
+| `commilot init`                    | create `.commilot.yml`                 |
+| `commilot config get\|set\|list`   | read or change the configuration       |
+| `commilot providers`               | state of each backend                  |
+| `commilot hook install\|uninstall` | wire Commilot into `git commit`        |
 
-**Options utiles**
+**Useful options**
 
-| Option               | Effet                                               |
-| -------------------- | --------------------------------------------------- |
-| `--dry-run`          | affiche sans rien créer                             |
-| `--all`              | inclut les fichiers non indexés (défaut de `split`) |
-| `--staged`           | seulement l'index (défaut de `generate`)            |
-| `--model <nom>`      | change de modèle pour ce lancement                  |
-| `--type` / `--scope` | impose le type ou le scope                          |
-| `--max-commits <n>`  | plafonne le nombre de commits                       |
-| `-y, --yes`          | accepte sans relecture                              |
-| `--no-cache`         | force un nouvel appel                               |
-| `--verbose`          | détaille ce qui se passe                            |
-
----
-
-## 7. En cas de problème
-
-| Message                                  | Que faire                                                             |
-| ---------------------------------------- | --------------------------------------------------------------------- |
-| `No staged changes detected`             | `git add` d'abord, ou utilisez `--all`                                |
-| `Cannot reach Ollama…`                   | lancez `ollama serve`                                                 |
-| `Ollama does not have the model 'x'`     | `ollama pull x`                                                       |
-| `Interactive review requires a terminal` | ajoutez `--yes` ou `--dry-run`                                        |
-| `Diff exceeds maximum size`              | committez une partie à la main, ou augmentez `behaviour.maxDiffLines` |
-
-Ajoutez `--verbose` pour voir les échanges avec le modèle.
+| Option               | What it does                                     |
+| -------------------- | ------------------------------------------------ |
+| `--dry-run`          | show without creating anything                   |
+| `--all`              | include unstaged files (the default for `split`) |
+| `--staged`           | staged only (the default for `generate`)         |
+| `--model <name>`     | use another model for this run                   |
+| `--type` / `--scope` | force the type or the scope                      |
+| `--max-commits <n>`  | cap the number of commits                        |
+| `-y, --yes`          | accept without reviewing                         |
+| `--no-cache`         | force a fresh call                               |
+| `--verbose`          | show what is going on                            |
 
 ---
 
-## 8. Utiliser un modèle distant _(optionnel)_
+## 7. When something goes wrong
 
-Gemini, ChatGPT et Claude sont implémentés mais **désactivés** : ils demandent une clé API, imposent des quotas, et envoient votre diff à un tiers. Ollama évite les trois.
+| Message                                  | What to do                                                   |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| `No staged changes detected`             | `git add` first, or use `--all`                              |
+| `Cannot reach Ollama…`                   | run `ollama serve`                                           |
+| `Ollama does not have the model 'x'`     | `ollama pull x`                                              |
+| `Interactive review requires a terminal` | add `--yes` or `--dry-run`                                   |
+| `Diff exceeds maximum size`              | commit some of it by hand, or raise `behaviour.maxDiffLines` |
 
-Pour en activer un malgré tout :
+Add `--verbose` to see the exchange with the model.
+
+---
+
+## 8. Using a hosted model _(optional)_
+
+Gemini, ChatGPT and Claude are implemented but **switched off**: each needs an API key, comes with a quota, and sends your diff to a third party. Ollama avoids all three.
+
+To turn one on anyway:
 
 ```bash
 commilot config set gemini.enabled true
-export COMMILOT_GEMINI_KEY="votre-clé"
+export COMMILOT_GEMINI_KEY="your-key"
 commilot generate --provider gemini
 ```
 
-| Provider | Modèle par défaut  | Clé                           |
+| Provider | Default model      | Key                           |
 | -------- | ------------------ | ----------------------------- |
-| `ollama` | `llama3.1`         | aucune — **actif par défaut** |
+| `ollama` | `llama3.1`         | none — **enabled by default** |
 | `gemini` | `gemini-2.0-flash` | `COMMILOT_GEMINI_KEY`         |
 | `openai` | `gpt-4o-mini`      | `COMMILOT_OPENAI_KEY`         |
 | `claude` | `claude-sonnet-5`  | `COMMILOT_CLAUDE_KEY`         |
 
-Le prompt est identique pour les quatre : seul le transport change.
+The prompt is identical for all four; only the transport differs.
 
-**Si vous activez un provider distant**, votre diff quitte votre machine. Vérifiez que c'est autorisé pour ce code, et gardez `.env*` dans `excludePatterns`.
-
----
-
-## Comment ça marche
-
-```
-config → provider → git diff → validation → prompt → IA → analyse → relecture → commit
-```
-
-Ce qui mérite d'être connu :
-
-- **Rien n'est perdu.** Si le modèle oublie des fichiers, ils atterrissent dans un commit de repli plutôt que d'être ignorés. Si un fichier est cité deux fois, seule la première affectation compte.
-- **Ollama est piloté par un schéma JSON.** Sans cela, un modèle local répond un objet unique là où il faudrait un tableau, et le découpage s'effondre.
-- **Les gros diffs sont résumés** plutôt que tronqués au hasard : diff complet jusqu'à 500 lignes, hunks raccourcis jusqu'à 2000, statistiques seules au-delà, refus passé 5000.
-- **Les clés API ne sont jamais journalisées**, même avec `--verbose`, et `config get` les masque.
+**If you enable a hosted provider**, your diff leaves your machine. Check that this is allowed for that code, and keep `.env*` in `excludePatterns`.
 
 ---
 
-## Développement
+## How it works
+
+```
+config → provider → git diff → validation → prompt → AI → parsing → review → commit
+```
+
+Worth knowing:
+
+- **Nothing is lost.** If the model forgets files, they land in a fallback commit instead of being dropped. If a file is listed twice, only the first assignment counts.
+- **Ollama is driven with a JSON schema.** Without it, a local model answers a single object where an array is needed, and the split collapses.
+- **Large diffs are summarised** rather than cut at random: the full diff up to 500 changed lines, shortened hunks up to 2000, file statistics beyond that, refused past 5000.
+- **API keys are never logged**, not even with `--verbose`, and `config get` masks them.
+
+---
+
+## Development
 
 ```bash
-npm test           # 249 tests
-npm run coverage   # seuils à 80 %
+npm test           # 251 tests
+npm run coverage   # thresholds at 80%
 npm run lint && npm run typecheck
 ```
 
-Les tests n'appellent jamais une vraie API : un faux serveur rejoue les réponses de chaque backend. Voir [CONTRIBUTING.md](CONTRIBUTING.md).
+Tests never call a real API: a fake server replays each backend's responses. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## Licence
 
-MIT — voir [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).
