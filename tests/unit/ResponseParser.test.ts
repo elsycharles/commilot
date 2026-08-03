@@ -159,6 +159,77 @@ describe('parseCommitPlan', () => {
   });
 });
 
+describe('custom fields', () => {
+  const custom = formatConfigSchema.parse({
+    template: '{type} {ticket} {area}',
+    fields: {
+      ticket: { description: 'the issue number' },
+      area: { description: 'the area', values: ['frontend', 'backend'] },
+    },
+  });
+
+  it('reads them out of the response', () => {
+    const group = parseCommitGroup(
+      JSON.stringify({
+        type: 'feat',
+        scope: 'auth',
+        description: 'add login',
+        ticket: 'PROJ-42',
+        area: 'backend',
+      }),
+      custom,
+    );
+
+    expect(group.fields).toMatchObject({ ticket: 'PROJ-42', area: 'backend' });
+  });
+
+  it('maps a near miss onto an allowed value', () => {
+    const group = parseCommitGroup(
+      JSON.stringify({ type: 'feat', scope: '', description: 'x', ticket: '1', area: 'Backend' }),
+      custom,
+    );
+    expect(group.fields?.area).toBe('backend');
+  });
+
+  it('leaves a field the model skipped empty rather than failing', () => {
+    const group = parseCommitGroup(
+      JSON.stringify({ type: 'feat', scope: '', description: 'x', area: 'frontend' }),
+      custom,
+    );
+    expect(group.fields?.ticket).toBe('');
+  });
+
+  it('truncates a field to its own maxLength', () => {
+    const short = formatConfigSchema.parse({
+      template: '{note}',
+      fields: { note: { maxLength: 10 } },
+    });
+    const group = parseCommitGroup(
+      JSON.stringify({ type: 'feat', scope: '', description: 'x', note: 'a'.repeat(50) }),
+      short,
+    );
+    expect(group.fields?.note).toHaveLength(10);
+  });
+
+  it('carries them through a split plan', () => {
+    const plan = parseCommitPlan(
+      JSON.stringify([
+        {
+          type: 'feat',
+          scope: 'auth',
+          description: 'add login',
+          ticket: 'PROJ-7',
+          area: 'backend',
+          files: ['src/controllers/auth.controller.ts'],
+        },
+      ]),
+      custom,
+      diff,
+    );
+    expect(plan[0]?.fields).toMatchObject({ ticket: 'PROJ-7', area: 'backend' });
+  });
+});
+
 describe('formatCommitMessage', () => {
   it('renders the configured template', () => {
     expect(

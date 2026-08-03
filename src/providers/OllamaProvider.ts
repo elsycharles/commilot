@@ -10,19 +10,24 @@ import type { BuiltPrompt, ExpectedShape } from './PromptBuilder.js';
  * constrains the decoder, and the same model then assigns every file correctly.
  */
 function jsonSchemaFor(expects: ExpectedShape): unknown {
-  const group = {
-    type: 'object',
-    properties: {
-      type: { type: 'string', enum: expects.types },
-      scope: { type: 'string' },
-      description: { type: 'string' },
-      files: { type: 'array', items: { type: 'string' } },
-    },
-    required: ['type', 'scope', 'description'],
+  const properties: Record<string, unknown> = {
+    files: { type: 'array', items: { type: 'string' } },
   };
 
+  // Built-ins and user-defined fields alike: the schema is what forces a local
+  // model to answer with every key, rather than the two it feels like.
+  for (const field of expects.fields) {
+    properties[field.name] =
+      field.values.length > 0
+        ? { type: 'string', enum: field.values }
+        : { type: 'string' };
+  }
+
+  const required = expects.fields.map((field) => field.name);
+  const group = { type: 'object', properties, required };
+
   return expects.kind === 'array'
-    ? { type: 'array', items: { ...group, required: [...group.required, 'files'] } }
+    ? { type: 'array', items: { ...group, required: [...required, 'files'] } }
     : group;
 }
 

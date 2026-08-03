@@ -20,12 +20,28 @@ const providerBlockSchema = z.object({
   enabled: z.boolean().default(false),
 });
 
+/**
+ * A field the user invented, named in `format.template`. The model is told what
+ * it means, so `{title}` produces a title rather than the word "title".
+ */
+export const customFieldSchema = z.object({
+  /** What to ask the model for. Without it, only the field name is a hint. */
+  description: z.string().default(''),
+  /** Restrict the answer to this list. */
+  values: z.array(z.string()).default([]),
+  maxLength: z.number().int().positive().optional(),
+});
+
+export type CustomField = z.infer<typeof customFieldSchema>;
+
 export const formatConfigSchema = z.object({
   template: z.string().default('{type}({scope}) - {description}'),
   types: z.array(z.string().min(1)).min(1).default(['dev', 'feat', 'bug']),
   scopes: z.array(z.string().min(1)).default([]),
   descriptionMaxLength: z.number().int().positive().default(72),
   language: z.string().min(2).default('en'),
+  /** Meaning of the placeholders in `template` beyond type, scope and description. */
+  fields: z.record(z.string(), customFieldSchema).default({}),
 });
 
 export const behaviourConfigSchema = z.object({

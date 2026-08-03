@@ -230,15 +230,15 @@ every commit invents its own vocabulary.
 
 ### The message template
 
-`format.template` recognises exactly **three** placeholders:
+`format.template` accepts **any placeholder you like**. Three are filled by Commilot:
 
-| Placeholder     | Replaced by                                     |
+| Placeholder     | Filled with                                     |
 | --------------- | ----------------------------------------------- |
 | `{type}`        | one of `format.types`                           |
 | `{scope}`       | one of `format.scopes`, or one the model infers |
 | `{description}` | the summary, capped at `descriptionMaxLength`   |
 
-You can arrange them freely, repeat them, and put any text around them:
+Arrange them freely, repeat them, put any text around them:
 
 ```yaml
 template: '{type}({scope}) - {description}' # feat(auth) - add login
@@ -246,10 +246,48 @@ template: '[{type}/{scope}] {description}' # [feat/auth] add login
 template: '{description} ({scope}) :: {type}' # add login (auth) :: feat
 ```
 
-Anything else is left as literal text. A template like `{title} — {genre}` produces the string
-`{title} — {genre}`, not an error: those fields do not exist, so there is nothing to fill them with.
+### Your own fields
 
-If `{scope}` is empty, an empty `()` is removed so you never get `feat() - add login`.
+Any other placeholder becomes a field the model has to produce. Tell it what the
+field means under `format.fields`:
+
+```yaml
+format:
+  template: '{summary} ({title}) : {type} {reason} | {area}'
+  fields:
+    title:
+      description: 'a short Title Case name for the change'
+    summary:
+      description: 'a one-line summary'
+      maxLength: 40
+    reason:
+      description: 'why the change was needed'
+    area:
+      description: 'the part of the system touched'
+      values: [frontend, backend, infra] # restrict the answer to this list
+```
+
+produces, for a real diff:
+
+```
+add login call (Login Endpoint) : feat to authenticate users | backend
+```
+
+| Key           | Effect                                                                                                     |
+| ------------- | ---------------------------------------------------------------------------------------------------------- |
+| `description` | what the model is asked to write. **The setting that matters** — without it, only the field name is a hint |
+| `values`      | restrict the answer to a list; a near miss is corrected, anything else is kept with a warning              |
+| `maxLength`   | truncate at a word boundary                                                                                |
+
+Fields are editable in the review, one prompt each, with your allowed values
+offered as a list.
+
+If the model leaves a field blank, the message is still produced: the empty value
+is dropped along with any brackets that surrounded it, so `{type}({scope}) [{ticket}]`
+gives `feat(auth)` rather than `feat(auth) []`.
+
+Every field costs the model a little attention. A template with eight fields will
+be answered less precisely than one with three — especially by a small local model.
 
 ## Choosing a model
 
