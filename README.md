@@ -1,10 +1,10 @@
 # Commilot
 
-> _commit + copilot_
+> Writes your git commit messages, and splits a large diff into several clean commits — locally, with no API key.
 
-Writes your commit messages, and **splits a large diff into several clean commits**.
-
-Runs locally on [Ollama](https://ollama.com): **no API key, no quota, your code never leaves your machine.**
+Commilot reads your changes, groups the related ones together, and proposes one commit per
+group. You review each one before anything is written. It runs on [Ollama](https://ollama.com) on
+your own machine: no account, no quota, and your code is never sent anywhere.
 
 ```
 $ commilot split
@@ -25,49 +25,115 @@ $ commilot split
   ? Review commit 1/3: ❯ Accept · Edit · Merge with next · Skip · Cancel
 ```
 
----
+## Table of Contents
 
-## 1. Install
+- [Background](#background)
+- [Install](#install)
+- [Usage](#usage)
+- [Configuration](#configuration)
+- [Choosing a model](#choosing-a-model)
+- [Troubleshooting](#troubleshooting)
+- [How it works](#how-it-works)
+- [Contributing](#contributing)
+- [Licence](#licence)
 
-**Ollama** (once):
+## Background
+
+Most AI commit tools write one message for everything you have staged, and send your diff to a
+hosted service. Commilot does neither.
+
+Its point is **splitting**: after an hour of work touching three unrelated things, it proposes three
+commits instead of one vague message. And because it runs against a local model, using it on private
+or client code raises no question about where that code went.
+
+## Install
+
+Commilot needs two things: **Ollama** (the local model runner) and **Node.js 20 or newer**.
+
+### 1. Ollama
+
+<details open>
+<summary><b>macOS</b></summary>
 
 ```bash
-brew install ollama          # or: https://ollama.com/download
-ollama serve                 # leave it running in a terminal
-ollama pull llama3.1         # ~5 GB, once
+curl -fsSL https://ollama.com/install.sh | sh
 ```
 
-**Commilot**:
+Or download [Ollama.dmg](https://ollama.com/download/Ollama.dmg). The app starts the server for you.
+
+</details>
+
+<details>
+<summary><b>Linux</b></summary>
+
+```bash
+curl -fsSL https://ollama.com/install.sh | sh
+```
+
+The installer sets up a systemd service. If it is not running:
+
+```bash
+ollama serve
+```
+
+</details>
+
+<details>
+<summary><b>Windows</b></summary>
+
+```powershell
+irm https://ollama.com/install.ps1 | iex
+```
+
+Or download [OllamaSetup.exe](https://ollama.com/download/OllamaSetup.exe). Ollama runs in the
+background once installed. Commilot works in PowerShell, in Git Bash and in WSL.
+
+</details>
+
+Then pull a model, once (about 5 GB):
+
+```bash
+ollama pull llama3.1
+```
+
+### 2. Commilot
 
 ```bash
 git clone https://github.com/elsycharles/commilot
 cd commilot
-npm ci && npm run build
-npm link                     # makes `commilot` available everywhere
+npm ci
+npm run build
+npm link
 ```
 
-> Would rather not `npm link`? Use the full path instead:
-> `node /path/to/commilot/dist/index.js` — everything works the same.
+`npm link` makes `commilot` available from any directory. If you would rather not, skip it and call
+the built file directly — everything below works the same:
 
-Check it:
+```bash
+node /path/to/commilot/dist/index.js generate      # macOS, Linux, WSL, Git Bash
+node C:\path\to\commilot\dist\index.js generate    # Windows PowerShell
+```
+
+### 3. Check it
 
 ```bash
 commilot --version
-commilot providers           # ollama should say "Ready"
+commilot providers     # should print: ollama … Ready — no API key needed
 ```
 
----
+## Usage
 
-## 2. Use it
+No configuration is required. In any git repository:
 
-No configuration needed. In any git repository:
-
-### One message for what you staged
+### Write one commit message
 
 ```bash
 git add .
 commilot generate
 ```
+
+`generate` looks at what you have **staged** — the same thing `git diff --staged` shows. If you get
+`No staged changes detected`, either `git add` first or pass `--all`.
 
 ### Split your work into several commits
 
@@ -75,65 +141,64 @@ commilot generate
 commilot split
 ```
 
-Commilot reads **all** your changes, groups them by subject, and proposes one commit per group. You review each one before it is created.
+`split` looks at **everything**: staged, unstaged and untracked. It proposes a plan, you review each
+commit, and it creates them one by one.
 
-### Look without creating anything
+### Preview without touching anything
 
 ```bash
 commilot generate --dry-run
 commilot split --dry-run
 ```
 
-The recommended first move. The answer is cached for an hour, so the real run right after is instant.
+Worth making a habit of. The answer is cached for an hour, so the real run straight after is
+instant.
 
----
+### Reviewing
 
-## 3. During the review
+| Choice              | What it does                                 |
+| ------------------- | -------------------------------------------- |
+| **Accept**          | create the commit                            |
+| **Edit**            | change the type, scope or description        |
+| **Regenerate**      | ask for a different proposal _(generate)_    |
+| **Merge with next** | fold this commit into the next one _(split)_ |
+| **Skip**            | leave these files alone _(split)_            |
+| **Cancel**          | abort; nothing is created                    |
 
-| Choice              | What it does                               |
-| ------------------- | ------------------------------------------ |
-| **Accept**          | creates the commit                         |
-| **Edit**            | fix the type, the scope or the description |
-| **Regenerate**      | ask for another proposal _(generate)_      |
-| **Merge with next** | fold into the next commit _(split)_        |
-| **Skip**            | leave those files alone _(split)_          |
-| **Cancel**          | abort everything, nothing is created       |
+Nothing is committed without your say-so. If a `split` fails halfway through, Commilot prints the
+exact `git reset` command to undo what it created.
 
-**Nothing is ever committed without your say-so.** And if a `split` fails midway, Commilot prints the exact command to undo it.
+### Every command
 
----
+| Command                            | What it does                                 |
+| ---------------------------------- | -------------------------------------------- |
+| `commilot generate`                | one message for the staged changes           |
+| `commilot split`                   | split all changes into several commits       |
+| `commilot init`                    | create `.commilot.yml`                       |
+| `commilot config get\|set\|list`   | read or change the configuration             |
+| `commilot providers`               | show the backend and how to change the model |
+| `commilot hook install\|uninstall` | wire Commilot into plain `git commit`        |
 
-## 4. Change the model
+| Option                              | What it does                                               |
+| ----------------------------------- | ---------------------------------------------------------- |
+| `--dry-run`                         | show the proposal, change nothing                          |
+| `--all`                             | include unstaged and untracked files (default for `split`) |
+| `--staged`                          | staged only (default for `generate`)                       |
+| `--model <name>`                    | use another model, just for this run                       |
+| `--type <type>` / `--scope <scope>` | force the type or the scope                                |
+| `--max-commits <n>`                 | cap how many commits `split` proposes                      |
+| `-y, --yes`                         | accept without the interactive review                      |
+| `--no-cache`                        | ask the model again instead of reusing an answer           |
+| `--verbose`                         | show what is being sent and received                       |
 
-Every Ollama model works. See yours with `ollama list`.
-
-```bash
-# for a single run
-commilot generate --model qwen2.5-coder:7b
-
-# permanently
-commilot config set ollama.model qwen2.5-coder:7b
-```
-
-Some reference points:
-
-| Model              | Size  | Notes                           |
-| ------------------ | ----- | ------------------------------- |
-| `llama3.1`         | ~5 GB | default, good balance           |
-| `qwen2.5-coder:7b` | ~5 GB | better at splitting and at code |
-| `llama3.2:3b`      | ~2 GB | faster, less precise            |
-
-A local model is less precise than a hosted one: you will sometimes see a `misc` commit holding whatever it could not classify. **No file is ever lost** — that part is guaranteed, unlike the quality of the split.
-
----
-
-## 5. Fit it to your project
+## Configuration
 
 ```bash
 commilot init
 ```
 
-Creates `.commilot.yml` (and adds it to your `.gitignore`). The setting worth your time is **your** scopes:
+This creates `.commilot.yml` and adds it to your `.gitignore`. Everything in it is optional —
+Commilot works without the file.
 
 ```yaml
 provider: ollama
@@ -144,116 +209,112 @@ ollama:
 
 format:
   template: '{type}({scope}) - {description}'
-  types: [dev, feat, bug] # or [feat, fix, chore, docs]
-  scopes: [auth, api, ui] # ⚠️ yours — empty means the AI invents them
+  types: [dev, feat, bug]
+  scopes: [auth, api, ui] # yours; empty means the model invents them
   descriptionMaxLength: 72
-  language: en # commit messages in this language
+  language: en # write commit messages in this language
 
 behaviour:
+  autoStage: false
+  maxDiffLines: 5000 # refuse anything larger
   excludePatterns:
     - 'package-lock.json'
-    - '.env*' # ⚠️ keep this if you enable a hosted provider
     - '*.min.js'
   splitMaxCommits: 10
   confirmBeforeCommit: true
-  cacheMinutes: 60 # reuse the answer for an identical diff
+  cacheMinutes: 60 # reuse the answer for an identical diff; 0 disables
 ```
 
-Filling in `scopes` is what improves message quality the most. Without that list, every commit invents its own vocabulary.
+**Filling in `scopes` is the single change that improves messages the most.** Without that list,
+every commit invents its own vocabulary.
 
----
+### The message template
 
-## 6. All the commands
+`format.template` recognises exactly **three** placeholders:
 
-| Command                            | What it does                           |
-| ---------------------------------- | -------------------------------------- |
-| `commilot generate`                | one message for the staged changes     |
-| `commilot split`                   | split all changes into several commits |
-| `commilot init`                    | create `.commilot.yml`                 |
-| `commilot config get\|set\|list`   | read or change the configuration       |
-| `commilot providers`               | state of each backend                  |
-| `commilot hook install\|uninstall` | wire Commilot into `git commit`        |
+| Placeholder     | Replaced by                                     |
+| --------------- | ----------------------------------------------- |
+| `{type}`        | one of `format.types`                           |
+| `{scope}`       | one of `format.scopes`, or one the model infers |
+| `{description}` | the summary, capped at `descriptionMaxLength`   |
 
-**Useful options**
+You can arrange them freely, repeat them, and put any text around them:
 
-| Option               | What it does                                     |
-| -------------------- | ------------------------------------------------ |
-| `--dry-run`          | show without creating anything                   |
-| `--all`              | include unstaged files (the default for `split`) |
-| `--staged`           | staged only (the default for `generate`)         |
-| `--model <name>`     | use another model for this run                   |
-| `--type` / `--scope` | force the type or the scope                      |
-| `--max-commits <n>`  | cap the number of commits                        |
-| `-y, --yes`          | accept without reviewing                         |
-| `--no-cache`         | force a fresh call                               |
-| `--verbose`          | show what is going on                            |
+```yaml
+template: '{type}({scope}) - {description}' # feat(auth) - add login
+template: '[{type}/{scope}] {description}' # [feat/auth] add login
+template: '{description} ({scope}) :: {type}' # add login (auth) :: feat
+```
 
----
+Anything else is left as literal text. A template like `{title} — {genre}` produces the string
+`{title} — {genre}`, not an error: those fields do not exist, so there is nothing to fill them with.
 
-## 7. When something goes wrong
+If `{scope}` is empty, an empty `()` is removed so you never get `feat() - add login`.
+
+## Choosing a model
+
+Any model you have pulled works. List yours with `ollama list`.
+
+```bash
+commilot generate --model qwen2.5-coder:7b        # this run only
+commilot config set ollama.model qwen2.5-coder:7b # from now on
+```
+
+| Model              | Size  | Notes                           |
+| ------------------ | ----- | ------------------------------- |
+| `llama3.1`         | ~5 GB | the default; a good balance     |
+| `qwen2.5-coder:7b` | ~5 GB | better at code and at splitting |
+| `llama3.2:3b`      | ~2 GB | faster, less accurate           |
+
+A local model is less precise than a hosted one. You will sometimes see a `misc` commit holding
+whatever it could not classify. **No file is ever lost** — that part is guaranteed; the quality of
+the grouping is not.
+
+## Troubleshooting
 
 | Message                                  | What to do                                                   |
 | ---------------------------------------- | ------------------------------------------------------------ |
-| `No staged changes detected`             | `git add` first, or use `--all`                              |
-| `Cannot reach Ollama…`                   | run `ollama serve`                                           |
+| `No staged changes detected`             | run `git add` first, or use `--all`                          |
+| `Cannot reach Ollama…`                   | start it: `ollama serve`                                     |
 | `Ollama does not have the model 'x'`     | `ollama pull x`                                              |
-| `Interactive review requires a terminal` | add `--yes` or `--dry-run`                                   |
-| `Diff exceeds maximum size`              | commit some of it by hand, or raise `behaviour.maxDiffLines` |
+| `Interactive review requires a terminal` | add `--yes`, or `--dry-run` to preview                       |
+| `Diff exceeds maximum size`              | commit part of it by hand, or raise `behaviour.maxDiffLines` |
+| `Not a git repository`                   | run it from inside a repository                              |
 
-Add `--verbose` to see the exchange with the model.
-
----
-
-## 8. Using a hosted model _(optional)_
-
-Gemini, ChatGPT and Claude are implemented but **switched off**: each needs an API key, comes with a quota, and sends your diff to a third party. Ollama avoids all three.
-
-To turn one on anyway:
-
-```bash
-commilot config set gemini.enabled true
-export COMMILOT_GEMINI_KEY="your-key"
-commilot generate --provider gemini
-```
-
-| Provider | Default model      | Key                           |
-| -------- | ------------------ | ----------------------------- |
-| `ollama` | `llama3.1`         | none — **enabled by default** |
-| `gemini` | `gemini-2.0-flash` | `COMMILOT_GEMINI_KEY`         |
-| `openai` | `gpt-4o-mini`      | `COMMILOT_OPENAI_KEY`         |
-| `claude` | `claude-sonnet-5`  | `COMMILOT_CLAUDE_KEY`         |
-
-The prompt is identical for all four; only the transport differs.
-
-**If you enable a hosted provider**, your diff leaves your machine. Check that this is allowed for that code, and keep `.env*` in `excludePatterns`.
-
----
+Add `--verbose` to any command to see the exchange with the model.
 
 ## How it works
 
 ```
-config → provider → git diff → validation → prompt → AI → parsing → review → commit
+config → git diff → validation → prompt → model → parsing → your review → commit
 ```
 
-Worth knowing:
+Four things worth knowing:
 
-- **Nothing is lost.** If the model forgets files, they land in a fallback commit instead of being dropped. If a file is listed twice, only the first assignment counts.
-- **Ollama is driven with a JSON schema.** Without it, a local model answers a single object where an array is needed, and the split collapses.
-- **Large diffs are summarised** rather than cut at random: the full diff up to 500 changed lines, shortened hunks up to 2000, file statistics beyond that, refused past 5000.
-- **API keys are never logged**, not even with `--verbose`, and `config get` masks them.
+- **Nothing is lost.** If the model forgets files, they go into a fallback commit rather than being
+  dropped. If it lists a file twice, only the first group keeps it.
+- **The model is constrained by a JSON schema.** Without it, a local model answers a single object
+  where a list of commits is needed, and the split collapses into one group.
+- **Large diffs are summarised, not truncated at random**: the full diff up to 500 changed lines,
+  shortened hunks up to 2000, file statistics beyond that, refused past 5000.
+- **Answers are cached for an hour** against the exact diff, so previewing then committing costs one
+  model call rather than two.
 
----
+## Contributing
 
-## Development
+Issues and pull requests are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the layout, the
+branch model and the testing rules. Security reports go through
+[SECURITY.md](SECURITY.md), not public issues.
 
 ```bash
-npm test           # 251 tests
+npm test           # unit and end-to-end
 npm run coverage   # thresholds at 80%
 npm run lint && npm run typecheck
 ```
 
-Tests never call a real API: a fake server replays each backend's responses. See [CONTRIBUTING.md](CONTRIBUTING.md).
+Tests never call a real model: a fake server replays recorded responses, so the suite runs offline
+in a few seconds.
 
 ## Licence
 
-MIT — see [LICENSE](LICENSE).
+MIT © Elsy Charles — see [LICENSE](LICENSE).

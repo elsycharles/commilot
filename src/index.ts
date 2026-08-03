@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import chalk from 'chalk';
-import { Command } from 'commander';
+import { Command, Option } from 'commander';
 import { configGetCommand, configListCommand, configSetCommand } from './commands/config.js';
 import { generateCommand } from './commands/generate.js';
 import { hookInstallCommand, hookUninstallCommand } from './commands/hook.js';
@@ -60,10 +60,10 @@ export function buildCli(): Command {
     .option('--dry-run', 'Preview the message without committing')
     .option('--type <type>', 'Force the commit type instead of letting the AI pick')
     .option('--scope <scope>', 'Force the commit scope instead of letting the AI pick')
-    .option('--provider <name>', 'Override the configured AI provider')
+    .addOption(new Option('--provider <name>').hideHelp())
     .option('--model <name>', 'Use this model for this run (e.g. qwen2.5-coder:7b)')
     .option('-y, --yes', 'Accept the generated message without the interactive review')
-    .option('--no-cache', 'Always call the provider, ignoring any cached answer')
+    .option('--no-cache', 'Always ask the model again, ignoring any cached answer')
     .option('--hook-output <file>', 'Write the message to a file instead of committing')
     .action(async (opts: Parameters<typeof generateCommand>[0], command: Command) => {
       applyGlobalFlags(command);
@@ -77,10 +77,10 @@ export function buildCli(): Command {
     .option('--all', 'Split staged, unstaged and untracked changes (default)')
     .option('--dry-run', 'Preview the commit plan without committing')
     .option('--max-commits <n>', 'Maximum number of commits to propose', parseMaxCommits)
-    .option('--provider <name>', 'Override the configured AI provider')
+    .addOption(new Option('--provider <name>').hideHelp())
     .option('--model <name>', 'Use this model for this run (e.g. qwen2.5-coder:7b)')
     .option('-y, --yes', 'Accept the whole commit plan without the interactive review')
-    .option('--no-cache', 'Always call the provider, ignoring any cached answer')
+    .option('--no-cache', 'Always ask the model again, ignoring any cached answer')
     .action(async (opts, command: Command) => {
       applyGlobalFlags(command);
       await splitCommand(opts);
@@ -146,7 +146,7 @@ export function buildCli(): Command {
 
   program
     .command('providers')
-    .description('List available AI providers and their status')
+    .description('Show the model backend and how to change the model')
     .action(async (_opts, command: Command) => {
       applyGlobalFlags(command);
       await providersCommand();
