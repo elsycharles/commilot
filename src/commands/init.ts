@@ -28,23 +28,6 @@ ollama:
   # baseUrl: "http://127.0.0.1:11434"
   # timeoutMs: 120000           # local inference is slower than an API
 
-# ---------------------------------------------------------------------------
-# Hosted providers are implemented but turned off: they need an API key and
-# come with quotas. To use one:
-#     commilot config set gemini.enabled true
-#     export COMMILOT_GEMINI_KEY=...
-#
-# gemini:
-#   enabled: true
-#   model: gemini-2.0-flash
-# openai:
-#   enabled: true
-#   model: gpt-4o-mini
-# claude:
-#   enabled: true
-#   model: claude-sonnet-5
-# ---------------------------------------------------------------------------
-
 # Commit Format
 format:
   template: "{type}({scope}) - {description}"

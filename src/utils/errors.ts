@@ -56,7 +56,7 @@ export class UnsupportedProviderError extends CommilotError {
 export class ProviderDisabledError extends CommilotError {
   constructor(provider: string) {
     super(
-      `Provider '${provider}' is turned off. Commilot runs on Ollama by default: local, no API key, no quota. To use ${provider} anyway: \`commilot config set ${provider}.enabled true\` (needs an API key and is subject to its quotas).`,
+      `Provider '${provider}' is not available. Commilot runs on Ollama: local, no API key, no quota. See \`commilot providers\`.`,
     );
   }
 }

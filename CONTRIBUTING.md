@@ -45,21 +45,26 @@ tests/
   fixtures/       sample diffs and canned AI responses
 ```
 
-## Why Ollama is the only backend enabled
+## Ollama is the product; the other backends are dormant code
 
-Gemini, OpenAI and Claude are fully implemented and tested, but shipped
-switched off: each needs an API key and comes with a quota, and a quota error
-on the first run is a poor introduction to a tool. Ollama needs neither, and
-nothing leaves the machine.
+Gemini, OpenAI and Claude are fully implemented and covered by tests, but they
+are **not part of what Commilot offers**. They are absent from the README, from
+`commilot providers`, from the generated config and from `--help`; selecting
+one reports that it is not available.
 
-Turning one back on is a setting, not a code change:
+They are kept because the `AIProvider` interface is only worth having if more
+than one backend implements it — they are what keeps the abstraction honest,
+and what makes adding a backend a small change rather than a rewrite.
+
+A maintainer can still reach one:
 
 ```bash
-commilot config set gemini.enabled true
+commilot config set gemini.enabled true   # then --provider gemini
 ```
 
-Keep it that way when adding a backend: implement it, test it, and leave
-`enabled` defaulting to false unless it works with no account and no quota.
+Treat that as a development affordance, not a feature. If you add a backend,
+leave `enabled` defaulting to false unless it works with no account, no quota
+and no network.
 
 ## Adding an AI provider
 

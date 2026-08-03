@@ -118,8 +118,7 @@ describe('init (AC-13)', () => {
 
       const config = readFileSync(join(fresh.dir, '.commilot.yml'), 'utf8');
       expect(config).toContain('provider: ollama');
-      expect(config).toContain('# gemini:');
-      expect(config).toContain('# claude:');
+      expect(config).not.toMatch(/gemini|openai|claude/i);
       expect(config).toContain('{type}({scope}) - {description}');
 
       expect(readFileSync(join(fresh.dir, '.gitignore'), 'utf8')).toContain('.commilot.yml');
@@ -138,22 +137,19 @@ describe('init (AC-13)', () => {
 });
 
 describe('providers (AC-14)', () => {
-  it('lists the four shipped providers with their state', async () => {
+  it('shows Ollama and nothing else', async () => {
     const { stdout, exitCode } = await repo.run(['providers']);
 
     expect(exitCode).toBe(0);
-    expect(stdout).toContain('ollama (default)');
-    for (const provider of ['gemini', 'openai', 'claude']) {
-      expect(stdout).toContain(provider);
-    }
+    expect(stdout).toContain('ollama');
     expect(stdout).toContain('Ready — no API key needed');
-    expect(stdout).toContain('Current provider: gemini');
+    expect(stdout).toContain('ollama list');
   });
 
-  it('switches provider through the config file', async () => {
-    expect((await repo.run(['config', 'set', 'provider', 'ollama'])).exitCode).toBe(0);
-    const { stdout } = await repo.run(['providers']);
-    expect(stdout).toContain('Current provider: ollama');
+  it('keeps --provider out of the help', async () => {
+    const { stdout } = await repo.run(['generate', '--help']);
+    expect(stdout).not.toContain('--provider');
+    expect(stdout).toContain('--model');
   });
 });
 

@@ -241,7 +241,8 @@ describe('initCommand (AC-13)', () => {
       await initCommand({}, fresh);
       const config = readFileSync(join(fresh, '.commilot.yml'), 'utf8');
       expect(config).toContain('provider: ollama');
-      expect(config).toContain('# gemini:');
+      // The generated file talks about Ollama and nothing else.
+      expect(config).not.toMatch(/gemini|openai|claude/i);
       expect(readFileSync(join(fresh, '.gitignore'), 'utf8')).toContain('.commilot.yml');
     } finally {
       rmSync(fresh, { recursive: true, force: true });
@@ -342,36 +343,37 @@ describe('working with no configuration at all', () => {
     expect(url).toContain('11434/api/chat');
   });
 
-  it('refuses a hosted provider with a message that says how to turn it on', async () => {
+  it('refuses a backend that is not part of the product surface', async () => {
     rmSync(join(repo, '.commilot.yml'), { force: true });
     write('src.ts', 'export const a = 1;\n');
     git('add', 'src.ts');
 
     await expect(generateCommand({ yes: true, provider: 'gemini' }, repo)).rejects.toThrow(
-      /config set gemini.enabled true/,
+      /not available.*runs on Ollama/s,
     );
   });
 });
 
 describe('providersCommand (AC-14)', () => {
-  it('lists every shipped provider with its state', async () => {
+  it('shows Ollama and nothing else', async () => {
+    // Default configuration, which is what a user sees.
+    rmSync(join(repo, '.commilot.yml'), { force: true });
     await providersCommand(repo);
     const output = plainOutput();
 
     expect(output).toContain('ollama (default)');
     expect(output).toContain('Ready — no API key needed');
-    for (const provider of ['gemini', 'openai', 'claude']) {
-      expect(output, `${provider} listed`).toContain(provider);
-    }
+    // The hosted backends still exist in the code; the product surface is Ollama.
+    expect(output).not.toMatch(/gemini|openai|claude/i);
   });
 
-  it('says which providers still need a key, and that ollama needs none', async () => {
+  it('says how to change the model', async () => {
+    rmSync(join(repo, '.commilot.yml'), { force: true });
     await providersCommand(repo);
     const output = plainOutput();
 
-    // Off is not the same as missing a key, and the output must not confuse them.
-    expect(output).toContain('config set openai.enabled true');
-    expect(output).not.toContain('Coming in');
+    expect(output).toContain('config set ollama.model');
+    expect(output).toContain('ollama list');
   });
 });
 

@@ -28,10 +28,12 @@ function pad(text: string, width: number): string {
 /** `commilot providers` — list providers with their availability and status. */
 export async function providersCommand(cwd: string = process.cwd()): Promise<void> {
   const config = await loadConfig(cwd);
-  const providers = ProviderFactory.listProviders(config);
+  // Only what the user can actually select. The other backends exist in the
+  // codebase but are not part of the product surface.
+  const providers = ProviderFactory.listProviders(config).filter((info) => info.enabled);
 
   logger.blank();
-  logger.info(`  ${chalk.bold('Available AI Providers:')}`);
+  logger.info(`  ${chalk.bold('Model backend')}`);
   logger.blank();
 
   const nameWidth = Math.max(...providers.map((info) => info.name.length)) + 12;
@@ -46,9 +48,8 @@ export async function providersCommand(cwd: string = process.cwd()): Promise<voi
   }
 
   logger.blank();
-  logger.info(`  Current provider: ${chalk.cyan(config.provider)}`);
-  logger.info(
-    `  Change the model: ${chalk.dim('commilot config set ollama.model <name>')} ${chalk.dim('or --model <name>')}`,
-  );
+  logger.info(`  Change the model: ${chalk.dim('commilot config set ollama.model <name>')}`);
+  logger.info(`  Just for one run: ${chalk.dim('commilot --model <name>')}`);
+  logger.info(`  Your installed models: ${chalk.dim('ollama list')}`);
   logger.blank();
 }

@@ -37,10 +37,11 @@ describe('createProvider', () => {
     expect(provider.isConfigured()).toBe(true);
   });
 
-  it('refuses a hosted provider that has not been turned on', () => {
+  it('refuses a backend that is not part of the product surface', () => {
+    // The code is still there and still tested, but a user cannot reach it.
     const off = configSchema.parse({ provider: 'gemini', gemini: { apiKey: 'k' } });
     expect(() => ProviderFactory.createProvider(off)).toThrow(ProviderDisabledError);
-    expect(() => ProviderFactory.createProvider(off)).toThrow(/config set gemini.enabled true/);
+    expect(() => ProviderFactory.createProvider(off)).toThrow(/runs on Ollama/);
   });
 
   it('uses a model passed for this run only', () => {
