@@ -65,6 +65,25 @@ function scopeRule(format: FormatConfig): string {
     : '- scope MUST be a short, lowercase feature area inferred from the changed code (e.g. auth, api, config)';
 }
 
+/**
+ * Which values must be written in the configured language.
+ *
+ * Free text only: `type` and a value picked from a fixed list are identifiers
+ * the user chose, and translating them would break the very constraint they
+ * express. `scope` is left alone for the same reason — it names a part of the
+ * codebase, not a sentence.
+ */
+function languageRule(format: FormatConfig, fields: FieldSpec[]): string[] {
+  const translatable = fields
+    .filter((field) => field.name !== 'type' && field.name !== 'scope' && field.values.length === 0)
+    .map((field) => field.name);
+
+  if (translatable.length === 0) return [];
+  return [
+    `- ${translatable.map((name) => `"${name}"`).join(', ')} MUST be written in this language (ISO 639-1): ${format.language}`,
+  ];
+}
+
 /** One line per field, so the model knows what each key is for. */
 function fieldRules(fields: FieldSpec[]): string[] {
   return fields
@@ -122,7 +141,7 @@ export class PromptBuilder {
       scopeRule(this.format),
       `- description MUST be lowercase, imperative mood, max ${this.format.descriptionMaxLength} chars`,
       '- description MUST NOT end with a period',
-      `- description MUST be written in this language (ISO 639-1): ${this.format.language}`,
+      ...languageRule(this.format, fields),
       '- describe WHAT changed and WHY, never restate the file names',
       ...fieldRules(fields),
       `- Respond ONLY with valid JSON: ${jsonSkeleton(fields, false)}`,
@@ -160,7 +179,7 @@ export class PromptBuilder {
       `- type MUST be one of: ${formatList(this.format.types)}`,
       scopeRule(this.format),
       `- description MUST be lowercase, imperative mood, max ${this.format.descriptionMaxLength} chars, no trailing period`,
-      `- description MUST be written in this language (ISO 639-1): ${this.format.language}`,
+      ...languageRule(this.format, fields),
       ...fieldRules(fields),
       `- Maximum ${maxCommits} groups`,
       '- Respond ONLY with valid JSON array:',

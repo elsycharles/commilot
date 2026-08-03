@@ -77,6 +77,27 @@ describe('buildGeneratePrompt', () => {
     expect(system).toContain('ISO 639-1): fr');
   });
 
+  it('applies the language to custom fields too, but not to fixed values', () => {
+    const french = formatConfigSchema.parse({
+      language: 'fr',
+      template: '{type}({scope}) - {description} [{resume}] {area}',
+      fields: {
+        resume: { description: 'a summary' },
+        area: { description: 'the area', values: ['frontend', 'backend'] },
+      },
+    });
+
+    const { system } = new PromptBuilder(french).buildGeneratePrompt(diff);
+    const rule = system.split('\n').find((line) => line.includes('ISO 639-1')) ?? '';
+
+    expect(rule).toContain('"description"');
+    expect(rule).toContain('"resume"');
+    // Identifiers and values the user fixed must survive untranslated.
+    expect(rule).not.toContain('"area"');
+    expect(rule).not.toContain('"type"');
+    expect(rule).not.toContain('"scope"');
+  });
+
   it('puts the diff in the user prompt', () => {
     const { user, strategy } = new PromptBuilder(format).buildGeneratePrompt(diff);
     expect(strategy).toBe('full');

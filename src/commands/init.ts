@@ -44,7 +44,9 @@ format:
   #   - auth
   #   - api
   descriptionMaxLength: 72       # Max chars for description line
-  language: en                   # Language for commit messages
+  language: en                   # ISO 639-1 (en, fr, es…). Applies to the
+                                 # description and to your free-text fields;
+                                 # not to type, scope, or fixed values.
 
   # The template accepts any placeholder. {type}, {scope} and {description} are
   # filled by Commilot; anything else becomes a field the model must produce.
