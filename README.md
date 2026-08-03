@@ -212,7 +212,7 @@ format:
   types: [dev, feat, bug]
   scopes: [auth, api, ui] # yours; empty means the model invents them
   descriptionMaxLength: 72
-  language: en # write commit messages in this language
+  language: en # ISO 639-1; see below
 
 behaviour:
   autoStage: false
@@ -227,6 +227,19 @@ behaviour:
 
 **Filling in `scopes` is the single change that improves messages the most.** Without that list,
 every commit invents its own vocabulary.
+
+`language` is an [ISO 639-1](https://en.wikipedia.org/wiki/List_of_ISO_639_language_codes) code —
+`en`, `fr`, `es`, `de`… It is passed to the model as an instruction, so it applies to the
+description and to any free-text field you define:
+
+```yaml
+language: fr # feat(auth) - ajouter le rafraîchissement du jeton
+```
+
+It deliberately does **not** touch `type`, `scope`, or a field restricted with `values`: those are
+identifiers you chose, and translating them would break the constraint they express. It is also a
+request to the model, not a guarantee — a small local model will occasionally answer in English
+anyway.
 
 ### The message template
 
