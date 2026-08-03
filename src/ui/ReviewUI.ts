@@ -1,6 +1,7 @@
 import chalk from 'chalk';
 import inquirer from 'inquirer';
 import { formatCommitMessage } from '../core/ResponseParser.js';
+import { customFields } from '../core/Template.js';
 import type { CommitGroup, CommitPlan } from '../types/commit.js';
 import type { FormatConfig } from '../types/config.js';
 import type { ParsedDiff } from '../types/diff.js';
@@ -244,6 +245,20 @@ export class ReviewUI {
       },
     ]);
 
+    const editedFields: Record<string, string> = { ...(group.fields ?? {}) };
+    for (const field of customFields(this.format)) {
+      const answer = await prompt<{ value: string }>([
+        {
+          type: field.values.length > 0 ? 'select' : 'input',
+          name: 'value',
+          message: `${field.name}${field.description ? ` (${field.description})` : ''}:`,
+          ...(field.values.length > 0 ? { choices: field.values } : {}),
+          default: editedFields[field.name] ?? '',
+        },
+      ]);
+      editedFields[field.name] = answer.value.trim();
+    }
+
     let scope = answers.scope;
     if (scope === 'other…') {
       const custom = await prompt<{ scope: string }>([
@@ -257,6 +272,7 @@ export class ReviewUI {
       type: answers.type.trim(),
       scope: scope.trim(),
       description: answers.description.trim().replace(/\.+$/, ''),
+      fields: editedFields,
     };
   }
 

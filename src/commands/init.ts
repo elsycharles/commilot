@@ -46,6 +46,16 @@ format:
   descriptionMaxLength: 72       # Max chars for description line
   language: en                   # Language for commit messages
 
+  # The template accepts any placeholder. {type}, {scope} and {description} are
+  # filled by Commilot; anything else becomes a field the model must produce.
+  # Describe it here so it knows what to write:
+  #
+  # template: "{summary} ({title}) : {type} | {area}"
+  # fields:
+  #   title:   { description: "a short Title Case name" }
+  #   summary: { description: "a one-line summary", maxLength: 40 }
+  #   area:    { description: "the part touched", values: [frontend, backend] }
+
 # Behaviour
 behaviour:
   autoStage: false              # If true, auto git-add before commit

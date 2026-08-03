@@ -1,3 +1,4 @@
+import { resolveFields, type FieldSpec } from '../core/Template.js';
 import type { FormatConfig } from '../types/config.js';
 import type { ParsedDiff } from '../types/diff.js';
 import { statusLetter } from '../types/diff.js';
@@ -13,6 +14,8 @@ export type TokenBudgetStrategy = 'full' | 'summarised' | 'stats-only';
 export interface ExpectedShape {
   kind: 'object' | 'array';
   types: string[];
+  /** Every field the answer must carry, including user-defined ones. */
+  fields: FieldSpec[];
 }
 
 export interface BuiltPrompt {
@@ -62,6 +65,24 @@ function scopeRule(format: FormatConfig): string {
     : '- scope MUST be a short, lowercase feature area inferred from the changed code (e.g. auth, api, config)';
 }
 
+/** One line per field, so the model knows what each key is for. */
+function fieldRules(fields: FieldSpec[]): string[] {
+  return fields
+    .filter((field) => !field.builtIn)
+    .map((field) => {
+      const values = field.values.length > 0 ? ` MUST be one of: ${formatList(field.values)}.` : '';
+      const max = field.maxLength ? ` Max ${field.maxLength} characters.` : '';
+      return `- "${field.name}": ${field.description}.${values}${max}`;
+    });
+}
+
+/** The exact JSON keys expected back, shown as a skeleton. */
+function jsonSkeleton(fields: FieldSpec[], withFiles: boolean): string {
+  const entries = fields.map((field) => `"${field.name}": "..."`);
+  if (withFiles) entries.push('"files": ["path/to/file"]');
+  return `{${entries.join(', ')}}`;
+}
+
 const GENERATE_EXAMPLES = `Examples of good output:
 {"type": "feat", "scope": "auth", "description": "add jwt token refresh mechanism"}
 {"type": "bug", "scope": "api", "description": "handle null response from user endpoint"}
@@ -91,6 +112,7 @@ export class PromptBuilder {
   /** System + user prompt for single-commit generation. */
   buildGeneratePrompt(diff: ParsedDiff): BuiltPrompt {
     const strategy = selectStrategy(diff.totalLines);
+    const fields = resolveFields(this.format);
     const system = [
       'You are a commit message generator. Analyse the following git diff and produce',
       `a commit message following this exact format: ${this.format.template}`,
@@ -102,7 +124,8 @@ export class PromptBuilder {
       '- description MUST NOT end with a period',
       `- description MUST be written in this language (ISO 639-1): ${this.format.language}`,
       '- describe WHAT changed and WHY, never restate the file names',
-      '- Respond ONLY with valid JSON: {"type": "...", "scope": "...", "description": "..."}',
+      ...fieldRules(fields),
+      `- Respond ONLY with valid JSON: ${jsonSkeleton(fields, false)}`,
       '',
       GENERATE_EXAMPLES,
       strategy === 'full'
@@ -116,13 +139,14 @@ export class PromptBuilder {
       system,
       user: this.buildUserPrompt(diff, strategy),
       strategy,
-      expects: { kind: 'object', types: this.format.types },
+      expects: { kind: 'object', types: this.format.types, fields },
     };
   }
 
   /** System + user prompt for split mode. */
   buildSplitPrompt(diff: ParsedDiff, maxCommits: number): BuiltPrompt {
     const strategy = selectStrategy(diff.totalLines);
+    const fields = resolveFields(this.format);
     const paths = diff.files.map((file) => file.path);
     const system = [
       'You are a commit splitter. Analyse the following git diff containing changes to',
@@ -137,9 +161,10 @@ export class PromptBuilder {
       scopeRule(this.format),
       `- description MUST be lowercase, imperative mood, max ${this.format.descriptionMaxLength} chars, no trailing period`,
       `- description MUST be written in this language (ISO 639-1): ${this.format.language}`,
+      ...fieldRules(fields),
       `- Maximum ${maxCommits} groups`,
       '- Respond ONLY with valid JSON array:',
-      '  [{"type": "...", "scope": "...", "description": "...", "files": ["path/to/file"]}]',
+      `  [${jsonSkeleton(fields, true)}]`,
       '- Order groups by logical dependency (foundational changes first)',
       '',
       SPLIT_EXAMPLES,
@@ -154,7 +179,7 @@ export class PromptBuilder {
       system,
       user: this.buildUserPrompt(diff, strategy),
       strategy,
-      expects: { kind: 'array', types: this.format.types },
+      expects: { kind: 'array', types: this.format.types, fields },
     };
   }
 

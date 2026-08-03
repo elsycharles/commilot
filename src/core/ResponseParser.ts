@@ -5,6 +5,7 @@ import {
   type CommitPlan,
 } from '../types/commit.js';
 import { formatConfigSchema, type FormatConfig } from '../types/config.js';
+import { customFields, isBuiltIn, templatePlaceholders } from './Template.js';
 import type { ParsedDiff } from '../types/diff.js';
 import { MalformedResponseError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
@@ -138,6 +139,41 @@ function normaliseFilePaths(files: string[] | undefined, diff?: ParsedDiff): str
     .filter((file, index, all) => all.indexOf(file) === index);
 }
 
+/**
+ * Read the user-defined fields out of the response, applying whatever the
+ * configuration constrained them to. A missing field becomes an empty string
+ * rather than a crash: a slightly poorer message beats a failed commit.
+ */
+function readCustomFields(
+  payload: Record<string, unknown>,
+  format: FormatConfig,
+): Record<string, string> {
+  const out: Record<string, string> = {};
+
+  for (const field of customFields(format)) {
+    const raw = payload[field.name];
+    let value = typeof raw === 'string' ? raw.trim() : raw === undefined ? '' : String(raw);
+
+    if (!value) {
+      logger.warn(`The model did not answer '${field.name}'; leaving it empty.`);
+    } else if (field.values.length > 0) {
+      const match = closestMatch(value, field.values);
+      if (match) {
+        value = match;
+      } else {
+        logger.warn(
+          `'${value}' is not one of the allowed values for '${field.name}'; keeping it anyway.`,
+        );
+      }
+    }
+
+    if (field.maxLength) value = truncateDescription(value, field.maxLength);
+    out[field.name] = value;
+  }
+
+  return out;
+}
+
 /** Parse and repair a generate-mode response. */
 export function parseCommitGroup(
   raw: string,
@@ -160,6 +196,7 @@ export function parseCommitGroup(
     scope: normaliseScope(result.data.scope ?? '', format),
     description: truncateDescription(result.data.description, format.descriptionMaxLength),
     files: normaliseFilePaths(result.data.files, diff),
+    fields: readCustomFields(result.data as Record<string, unknown>, format),
   };
 }
 
@@ -218,6 +255,7 @@ export function parseCommitPlan(
       scope: normaliseScope(entry.scope ?? '', format),
       description: truncateDescription(entry.description, format.descriptionMaxLength),
       files,
+      fields: readCustomFields(entry as Record<string, unknown>, format),
     });
   }
 
@@ -271,15 +309,35 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
 }
 
-/** Render a CommitGroup through the configured template. */
+/**
+ * Render a CommitGroup through the configured template.
+ *
+ * Every `{placeholder}` is filled: the three built-ins from the group, the rest
+ * from the fields the model was asked to produce.
+ */
 export function formatCommitMessage(group: CommitGroup, format: FormatConfig): string {
-  const message = format.template
-    .replace(/\{type\}/g, group.type)
-    .replace(/\{scope\}/g, group.scope)
-    .replace(/\{description\}/g, group.description);
-  // Drop an empty "()" when no scope could be determined.
+  const values: Record<string, string> = {
+    type: group.type,
+    scope: group.scope,
+    description: group.description,
+    ...(group.fields ?? {}),
+  };
+
+  let message = format.template;
+  for (const name of templatePlaceholders(format.template)) {
+    const value = values[name] ?? '';
+    if (!isBuiltIn(name) && values[name] === undefined) {
+      logger.debug(`no value for '{${name}}'; rendered as empty`);
+    }
+    message = message.replaceAll(`{${name}}`, value);
+  }
+
+  // Drop brackets left empty by a field that came back blank, then tidy up the
+  // separators that surrounded it.
   return message
-    .replace(/\(\s*\)/, '')
+    .replace(/\(\s*\)|\[\s*\]|\{\s*\}/g, '')
+    .replace(/\s+([|:;,])\s+\1/g, ' $1')
     .replace(/\s{2,}/g, ' ')
+    .replace(/^[\s|:;,-]+|[\s|:;,-]+$/g, '')
     .trim();
 }
