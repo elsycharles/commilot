@@ -1,6 +1,6 @@
 {
   "name": "commilot",
-  "version": "1.6.0",
+  "version": "1.6.1",
   "description": "AI-powered commit message generator & splitter \u2014 commit + copilot",
   "keywords": [
     "git",
