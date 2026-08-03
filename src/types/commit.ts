@@ -10,6 +10,8 @@ export interface CommitGroup {
   description: string;
   /** Files assigned to this group. Empty for generate mode until resolved. */
   files: string[];
+  /** Values for the user-defined placeholders of `format.template`. */
+  fields?: Record<string, string>;
 }
 
 /** An ordered list of commit groups produced by the split command. */
@@ -23,12 +25,15 @@ export interface CommitResult {
 }
 
 /** Raw AI response schema for generate mode. */
-export const commitGroupResponseSchema = z.object({
-  type: z.string().min(1),
-  scope: z.string().default(''),
-  description: z.string().min(1),
-  files: z.array(z.string()).optional(),
-});
+export const commitGroupResponseSchema = z
+  .object({
+    type: z.string().min(1),
+    scope: z.string().default(''),
+    description: z.string().min(1),
+    files: z.array(z.string()).optional(),
+  })
+  // Custom fields arrive as extra keys and are picked up by the parser.
+  .catchall(z.unknown());
 
 /** Raw AI response schema for split mode. */
 export const commitPlanResponseSchema = z.array(
