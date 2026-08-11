@@ -11,6 +11,8 @@ export interface GenerateOptions {
   forceScope?: string;
   /** Skip the response cache — what `regenerate` needs to get a new answer. */
   noCache?: boolean;
+  /** Fewest groups a split may return. */
+  minCommits?: number;
 }
 
 /**

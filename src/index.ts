@@ -77,6 +77,11 @@ export function buildCli(): Command {
     .option('--all', 'Split staged, unstaged and untracked changes (default)')
     .option('--dry-run', 'Preview the commit plan without committing')
     .option('--max-commits <n>', 'Maximum number of commits to propose', parseMaxCommits)
+    .option(
+      '--min-commits <n>',
+      'Insist on at least this many commits instead of one big group',
+      parseMaxCommits,
+    )
     .addOption(new Option('--provider <name>').hideHelp())
     .option('--model <name>', 'Use this model for this run (e.g. qwen2.5-coder:7b)')
     .option('-y, --yes', 'Accept the whole commit plan without the interactive review')
