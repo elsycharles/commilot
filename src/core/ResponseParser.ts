@@ -231,25 +231,39 @@ export function parseCommitPlan(
   const known = diff ? new Set(diff.files.map((file) => file.path)) : undefined;
 
   const groups: CommitPlan = [];
-  for (const entry of result.data) {
-    const files = normaliseFilePaths(entry.files, diff).filter((file) => {
-      if (seen.has(file)) {
-        logger.debug(`file '${file}' appeared twice; keeping first assignment`);
-        return false;
-      }
-      if (known && !known.has(file)) {
-        logger.debug(`file '${file}' is not part of the diff; dropping`);
-        return false;
-      }
-      seen.add(file);
-      return true;
-    });
+  // Resolve each file to the group that says the most about it.
+  //
+  // Models routinely answer with a catch-all group listing everything, then
+  // the specific groups after it. Keeping whichever came first would keep the
+  // catch-all and starve the rest, which is exactly the "it put everything in
+  // one commit" complaint. A group naming three files describes them better
+  // than one naming thirty, so the smallest claim wins.
+  const candidates = result.data
+    .map((entry) => ({
+      entry,
+      files: normaliseFilePaths(entry.files, diff).filter((file) => !known || known.has(file)),
+    }))
+    .filter((candidate) => candidate.files.length > 0);
 
+  const owner = new Map<string, number>();
+  candidates.forEach((candidate, index) => {
+    for (const file of candidate.files) {
+      const current = owner.get(file);
+      if (current === undefined || candidate.files.length < (candidates[current]?.files.length ?? 0)) {
+        owner.set(file, index);
+      }
+    }
+  });
+
+  for (const [index, candidate] of candidates.entries()) {
+    const files = candidate.files.filter((file) => owner.get(file) === index);
     if (files.length === 0) {
-      logger.debug(`dropping empty group '${entry.description}'`);
+      logger.debug(`dropping group '${candidate.entry.description}': its files are better placed`);
       continue;
     }
+    for (const file of files) seen.add(file);
 
+    const entry = candidate.entry;
     groups.push({
       type: normaliseType(entry.type, format),
       scope: normaliseScope(entry.scope ?? '', format),

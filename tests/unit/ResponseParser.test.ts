@@ -230,6 +230,58 @@ describe('custom fields', () => {
   });
 });
 
+describe('a catch-all group must not starve the specific ones', () => {
+  it('gives each file to the group that names the fewest', () => {
+    // Models routinely answer with everything in one group, then the real
+    // grouping after it. Keeping whichever came first kept the catch-all and
+    // dropped the rest — the "it put everything in one commit" complaint.
+    const plan = parseCommitPlan(
+      JSON.stringify([
+        {
+          type: 'dev',
+          scope: 'all',
+          description: 'everything at once',
+          files: [
+            'src/controllers/auth.controller.ts',
+            'src/components/stats-widget.tsx',
+            '.eslintrc.json',
+          ],
+        },
+        {
+          type: 'feat',
+          scope: 'ui',
+          description: 'add stats widget',
+          files: ['src/components/stats-widget.tsx'],
+        },
+        { type: 'dev', scope: 'config', description: 'tune eslint', files: ['.eslintrc.json'] },
+      ]),
+      format,
+      diff,
+    );
+
+    expect(plan).toHaveLength(3);
+    expect(plan.find((g) => g.scope === 'ui')?.files).toEqual(['src/components/stats-widget.tsx']);
+    expect(plan.find((g) => g.scope === 'config')?.files).toEqual(['.eslintrc.json']);
+    // The catch-all keeps only what nothing else claimed.
+    expect(plan.find((g) => g.scope === 'all')?.files).toEqual([
+      'src/controllers/auth.controller.ts',
+    ]);
+  });
+
+  it('drops a group whose files are all better placed', () => {
+    const plan = parseCommitPlan(
+      JSON.stringify([
+        { type: 'dev', scope: 'dup', description: 'duplicate', files: ['.eslintrc.json'] },
+        { type: 'dev', scope: 'dup2', description: 'duplicate too', files: ['.eslintrc.json'] },
+      ]),
+      format,
+      diff,
+    );
+
+    expect(plan.filter((g) => g.files.includes('.eslintrc.json'))).toHaveLength(1);
+  });
+});
+
 describe('formatCommitMessage', () => {
   it('renders the configured template', () => {
     expect(

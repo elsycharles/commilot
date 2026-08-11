@@ -17,6 +17,8 @@ import { logger } from '../utils/logger.js';
 
 export interface SplitOptions extends CommonOptions {
   maxCommits?: number;
+  /** Ask for at least this many commits instead of accepting one big group. */
+  minCommits?: number;
 }
 
 /** `commilot split` — group the diff into N logically coherent commits. */
@@ -25,6 +27,12 @@ export async function splitCommand(opts: SplitOptions, cwd: string = process.cwd
   const { git, config, provider, providerName, diff } = ctx;
   const review = new ReviewUI(config.format);
   const maxCommits = opts.maxCommits ?? config.behaviour.splitMaxCommits;
+  // Never ask for more groups than there are files to put in them.
+  const minCommits = Math.min(
+    opts.minCommits ?? config.behaviour.splitMinCommits,
+    maxCommits,
+    diff.files.length,
+  );
 
   // Remember the staging state so cancelling leaves the repo untouched.
   const originalStaged = await git.getStagedFiles();
@@ -36,7 +44,7 @@ export async function splitCommand(opts: SplitOptions, cwd: string = process.cwd
   const plan = await withSpinner(
     `Splitting into logical commits... ${chalk.dim(`(provider: ${providerName})`)}`,
     () =>
-      provider.generateCommitPlan(diff, config.format, { maxCommits, noCache: bypassCache(opts) }),
+      provider.generateCommitPlan(diff, config.format, { maxCommits, minCommits, noCache: bypassCache(opts) }),
     `Split into logical commits ${chalk.dim(`(provider: ${providerName})`)}`,
   );
 

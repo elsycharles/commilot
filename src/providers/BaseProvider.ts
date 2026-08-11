@@ -83,10 +83,34 @@ export abstract class BaseHttpProvider implements AIProvider {
     opts: GenerateOptions = {},
   ): Promise<CommitPlan> {
     const maxCommits = opts.maxCommits ?? 10;
-    const prompt = new PromptBuilder(config).buildSplitPrompt(diff, maxCommits);
+    const minCommits = Math.min(opts.minCommits ?? 1, maxCommits);
+    const builder = new PromptBuilder(config);
+    const prompt = builder.buildSplitPrompt(diff, maxCommits, minCommits);
     logger.debug(`${this.getProviderName()} split — strategy: ${prompt.strategy}`);
+
     const raw = await this.requestWithRepair(prompt, opts.noCache);
-    return parseCommitPlan(raw, config, diff, maxCommits);
+    const plan = parseCommitPlan(raw, config, diff, maxCommits);
+    if (plan.length >= minCommits) return plan;
+
+    // Ask once more, naming what came back. Repeating the same prompt would
+    // most likely produce the same answer.
+    logger.debug(`plan has ${plan.length} groups, ${minCommits} wanted — asking again`);
+    const retry = await this.requestWithRepair(
+      {
+        ...prompt,
+        system: `${prompt.system}\n\nYour previous answer grouped the work into ${plan.length} commit(s). That is too coarse. Split it into at least ${minCommits} groups, each covering a distinct subject, and give every group a different set of files.`,
+      },
+      true,
+    );
+
+    const second = parseCommitPlan(retry, config, diff, maxCommits);
+    if (second.length < minCommits) {
+      logger.warn(
+        `Asked for ${minCommits} commits; the model could only justify ${second.length}. Use Merge or Skip in the review, or try a larger model.`,
+      );
+    }
+    // Keep whichever split the work more finely.
+    return second.length > plan.length ? second : plan;
   }
 
   validateResponse(raw: unknown): CommitGroup | CommitPlan {
@@ -112,6 +136,9 @@ export abstract class BaseHttpProvider implements AIProvider {
     if (cached) return cached;
 
     const text = await this.request(prompt);
+    // `--verbose` promises details when a response disappoints; without the
+    // answer itself there is nothing to look at.
+    logger.debug(`raw response: ${text.slice(0, 2000)}`);
     if (looksLikeJson(text)) {
       writeCache(key, text, ttl);
       return text;

@@ -1,6 +1,6 @@
 {
   "name": "commilot",
-  "version": "1.6.3",
+  "version": "1.7.0",
   "description": "Writes your git commit messages and splits a large diff into several clean commits \u2014 locally, with no API key",
   "keywords": [
     "git",

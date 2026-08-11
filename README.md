@@ -1,5 +1,9 @@
 # Commilot
 
+[![npm](https://img.shields.io/npm/v/commilot)](https://www.npmjs.com/package/commilot)
+[![CI](https://github.com/elsycharles/commilot/actions/workflows/ci.yml/badge.svg)](https://github.com/elsycharles/commilot/actions/workflows/ci.yml)
+[![licence](https://img.shields.io/npm/l/commilot)](LICENSE)
+
 > Writes your git commit messages, and splits a large diff into several clean commits — locally, with no API key.
 
 Commilot reads your changes, groups the related ones together, and proposes one commit per
@@ -99,20 +103,34 @@ ollama pull llama3.1
 ### 2. Commilot
 
 ```bash
+npm install -g commilot
+```
+
+Or run it without installing anything:
+
+```bash
+npx commilot generate
+```
+
+<details>
+<summary>From source instead</summary>
+
+```bash
 git clone https://github.com/elsycharles/commilot
 cd commilot
 npm ci
 npm run build
-npm link
+npm link          # makes `commilot` available from any directory
 ```
 
-`npm link` makes `commilot` available from any directory. If you would rather not, skip it and call
-the built file directly — everything below works the same:
+Skip `npm link` and call the built file directly if you prefer:
 
 ```bash
 node /path/to/commilot/dist/index.js generate      # macOS, Linux, WSL, Git Bash
 node C:\path\to\commilot\dist\index.js generate    # Windows PowerShell
 ```
+
+</details>
 
 ### 3. Check it
 
@@ -187,6 +205,7 @@ exact `git reset` command to undo what it created.
 | `--model <name>`                    | use another model, just for this run                       |
 | `--type <type>` / `--scope <scope>` | force the type or the scope                                |
 | `--max-commits <n>`                 | cap how many commits `split` proposes                      |
+| `--min-commits <n>`                 | insist on at least this many, instead of one big group     |
 | `-y, --yes`                         | accept without the interactive review                      |
 | `--no-cache`                        | ask the model again instead of reusing an answer           |
 | `--verbose`                         | show what is being sent and received                       |
@@ -221,6 +240,7 @@ behaviour:
     - 'package-lock.json'
     - '*.min.js'
   splitMaxCommits: 10
+  splitMinCommits: 2 # a split that returns one commit has not split anything
   confirmBeforeCommit: true
   cacheMinutes: 60 # reuse the answer for an identical diff; 0 disables
 ```
@@ -316,6 +336,12 @@ commilot config set ollama.model qwen2.5-coder:7b # from now on
 | `llama3.1`         | ~5 GB | the default; a good balance     |
 | `qwen2.5-coder:7b` | ~5 GB | better at code and at splitting |
 | `llama3.2:3b`      | ~2 GB | faster, less accurate           |
+
+`split` asks for **at least two commits** by default — returning one would not be splitting. It
+never asks for more groups than there are files, so a one-file change still yields one commit.
+
+If the result is still too coarse, `--min-commits 4` pushes further. It is a request, not a
+guarantee: when the model cannot justify that many, Commilot says so rather than inventing groups.
 
 A local model is less precise than a hosted one. You will sometimes see a `misc` commit holding
 whatever it could not classify. **No file is ever lost** — that part is guaranteed; the quality of
