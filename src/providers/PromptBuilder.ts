@@ -16,6 +16,8 @@ export interface ExpectedShape {
   types: string[];
   /** Every field the answer must carry, including user-defined ones. */
   fields: FieldSpec[];
+  /** For an array: the fewest entries the answer may contain. */
+  minItems?: number;
 }
 
 export interface BuiltPrompt {
@@ -30,6 +32,28 @@ export function selectStrategy(totalLines: number): TokenBudgetStrategy {
   if (totalLines <= 500) return 'full';
   if (totalLines <= 2000) return 'summarised';
   return 'stats-only';
+}
+
+/** Beyond this many files, code bodies stop helping a split and start hurting. */
+const SPLIT_FULL_DIFF_MAX_FILES = 6;
+
+/**
+ * Splitting needs a lighter context than describing does.
+ *
+ * Measured on a real 15-file, 409-line change: given the whole diff, llama3.1
+ * produced one usable group and left eight files unassigned; given the file
+ * list and the per-file stats, it produced six coherent groups covering
+ * thirteen. Grouping is a question about paths and sizes, and the code bodies
+ * crowd out the only part that answers it.
+ *
+ * Small changes keep their content: a handful of files is not enough context
+ * to drown in, and the code is what makes the descriptions specific.
+ */
+export function selectSplitStrategy(diff: ParsedDiff): TokenBudgetStrategy {
+  const base = selectStrategy(diff.totalLines);
+  if (base === 'full' && diff.files.length > SPLIT_FULL_DIFF_MAX_FILES) return 'stats-only';
+  if (base === 'summarised') return 'stats-only';
+  return base;
 }
 
 const HUNK_PREVIEW_LINES = 10;
@@ -163,8 +187,8 @@ export class PromptBuilder {
   }
 
   /** System + user prompt for split mode. */
-  buildSplitPrompt(diff: ParsedDiff, maxCommits: number): BuiltPrompt {
-    const strategy = selectStrategy(diff.totalLines);
+  buildSplitPrompt(diff: ParsedDiff, maxCommits: number, minCommits = 1): BuiltPrompt {
+    const strategy = selectSplitStrategy(diff);
     const fields = resolveFields(this.format);
     const paths = diff.files.map((file) => file.path);
     const system = [
@@ -181,6 +205,9 @@ export class PromptBuilder {
       `- description MUST be lowercase, imperative mood, max ${this.format.descriptionMaxLength} chars, no trailing period`,
       ...languageRule(this.format, fields),
       ...fieldRules(fields),
+      minCommits > 1
+        ? `- Produce AT LEAST ${minCommits} groups: split the work by subject rather than lumping it together`
+        : '- Produce at least one group; never answer with an empty array',
       `- Maximum ${maxCommits} groups`,
       '- Respond ONLY with valid JSON array:',
       `  [${jsonSkeleton(fields, true)}]`,
@@ -198,7 +225,12 @@ export class PromptBuilder {
       system,
       user: this.buildUserPrompt(diff, strategy),
       strategy,
-      expects: { kind: 'array', types: this.format.types, fields },
+      expects: {
+        kind: 'array',
+        types: this.format.types,
+        fields,
+        minItems: Math.max(1, minCommits),
+      },
     };
   }
 

@@ -68,6 +68,8 @@ behaviour:
     - "*.min.js"
     - "*.min.css"
   splitMaxCommits: 10           # Max commits when using split command
+  splitMinCommits: 2            # A split returning one commit has not split
+                                # anything. Capped by the number of files.
   confirmBeforeCommit: true     # Always ask before executing git commit
   cacheMinutes: 60              # Reuse an identical answer instead of paying a
                                 # request. 0 disables. --no-cache skips it once.

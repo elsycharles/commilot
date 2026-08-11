@@ -26,9 +26,20 @@ function jsonSchemaFor(expects: ExpectedShape): unknown {
   const required = expects.fields.map((field) => field.name);
   const group = { type: 'object', properties, required };
 
-  return expects.kind === 'array'
-    ? { type: 'array', items: { ...group, required: [...required, 'files'] } }
-    : group;
+  if (expects.kind !== 'array') return group;
+
+  // minItems 1 is what stops a model answering `[]` and leaving every file to
+  // the fallback commit.
+  //
+  // It stays at 1 even when more commits are wanted: asked for four entries,
+  // llama3.1 pads the array by repeating the same group dozens of times, which
+  // is worse than a short answer. Wanting more groups is handled by asking
+  // again, not by constraining the decoder.
+  return {
+    type: 'array',
+    minItems: 1,
+    items: { ...group, required: [...required, 'files'] },
+  };
 }
 
 const DEFAULT_BASE_URL = 'http://127.0.0.1:11434';
