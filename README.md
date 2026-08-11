@@ -1,5 +1,9 @@
 # Commilot
 
+[![npm](https://img.shields.io/npm/v/commilot)](https://www.npmjs.com/package/commilot)
+[![CI](https://github.com/elsycharles/commilot/actions/workflows/ci.yml/badge.svg)](https://github.com/elsycharles/commilot/actions/workflows/ci.yml)
+[![licence](https://img.shields.io/npm/l/commilot)](LICENSE)
+
 > Writes your git commit messages, and splits a large diff into several clean commits — locally, with no API key.
 
 Commilot reads your changes, groups the related ones together, and proposes one commit per
@@ -99,20 +103,34 @@ ollama pull llama3.1
 ### 2. Commilot
 
 ```bash
+npm install -g commilot
+```
+
+Or run it without installing anything:
+
+```bash
+npx commilot generate
+```
+
+<details>
+<summary>From source instead</summary>
+
+```bash
 git clone https://github.com/elsycharles/commilot
 cd commilot
 npm ci
 npm run build
-npm link
+npm link          # makes `commilot` available from any directory
 ```
 
-`npm link` makes `commilot` available from any directory. If you would rather not, skip it and call
-the built file directly — everything below works the same:
+Skip `npm link` and call the built file directly if you prefer:
 
 ```bash
 node /path/to/commilot/dist/index.js generate      # macOS, Linux, WSL, Git Bash
 node C:\path\to\commilot\dist\index.js generate    # Windows PowerShell
 ```
+
+</details>
 
 ### 3. Check it
 
