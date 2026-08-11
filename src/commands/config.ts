@@ -9,7 +9,7 @@ import {
   setByPath,
   writeRawConfig,
 } from '../core/ConfigLoader.js';
-import { configSchema, defaultConfig } from '../types/config.js';
+import { configSchema, defaultConfig, PROVIDER_NAMES } from '../types/config.js';
 import { ConfigValidationError } from '../utils/errors.js';
 import { logger } from '../utils/logger.js';
 
@@ -85,9 +85,17 @@ export async function configSetCommand(
 export async function configListCommand(cwd: string = process.cwd()): Promise<void> {
   const { config, sources } = await loadConfigWithSources(cwd);
   const redacted = JSON.parse(JSON.stringify(config)) as Record<string, Record<string, unknown>>;
-  for (const provider of ['gemini', 'openai', 'claude', 'ollama']) {
+  for (const provider of PROVIDER_NAMES) {
     const block = redacted[provider];
-    if (block && typeof block.apiKey === 'string' && block.apiKey) {
+    if (!block) continue;
+
+    // A backend the user cannot select is noise here, exactly as it is in
+    // `commilot providers`. Its settings still exist and still load.
+    if (!block.enabled) {
+      delete redacted[provider];
+      continue;
+    }
+    if (typeof block.apiKey === 'string' && block.apiKey) {
       block.apiKey = String(maskIfSecret('apiKey', block.apiKey));
     }
   }

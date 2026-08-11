@@ -354,6 +354,31 @@ describe('working with no configuration at all', () => {
   });
 });
 
+describe('configListCommand hides what cannot be selected', () => {
+  it('omits the backends that are switched off', async () => {
+    // The shared fixture enables gemini on purpose; start from the defaults.
+    write('.commilot.yml', 'provider: ollama\n');
+
+    await configListCommand(repo);
+    const output = stdout.join('\n');
+
+    expect(output).toContain('ollama:');
+    for (const hidden of ['gemini:', 'openai:', 'claude:']) {
+      expect(output, `${hidden} should be hidden`).not.toContain(hidden);
+    }
+  });
+
+  it('shows one again as soon as it is enabled', async () => {
+    write('.commilot.yml', 'provider: ollama\n');
+    await configSetCommand('gemini.enabled', 'true', {}, repo);
+    stdout.length = 0;
+
+    await configListCommand(repo);
+
+    expect(stdout.join('\n')).toContain('gemini:');
+  });
+});
+
 describe('providersCommand (AC-14)', () => {
   it('shows Ollama and nothing else', async () => {
     // Default configuration, which is what a user sees.

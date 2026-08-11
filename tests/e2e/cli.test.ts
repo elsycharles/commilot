@@ -136,6 +136,55 @@ describe('init (AC-13)', () => {
   });
 });
 
+describe('the hosted backends leave no trace in the output', () => {
+  // They keep their code for a later release, but this version presents one
+  // backend. A leak here sends someone chasing a provider they cannot select.
+  const FORBIDDEN = /gemini|openai|claude|anthropic|chatgpt/i;
+
+  it('never names one across every command and every help screen', async () => {
+    repo.write('.commilot.yml', 'provider: ollama\n');
+    repo.write('src.ts', 'export const a = 1;\n');
+    repo.git('add', 'src.ts');
+
+    const surfaces = [
+      ['--help'],
+      ['generate', '--help'],
+      ['split', '--help'],
+      ['init', '--help'],
+      ['config', '--help'],
+      ['providers', '--help'],
+      ['hook', '--help'],
+      ['providers'],
+      ['config', 'list'],
+      ['config', 'get', 'provider'],
+      ['generate', '--provider', 'nope'],
+    ];
+
+    for (const args of surfaces) {
+      const { stdout, stderr } = await repo.run(args);
+      // The repo path itself may contain anything; only judge the message.
+      const output = `${stdout}\n${stderr}`
+        .split('\n')
+        .filter((line) => !line.includes(repo.dir))
+        .join('\n');
+
+      expect(output, `commilot ${args.join(' ')}`).not.toMatch(FORBIDDEN);
+    }
+  });
+
+  it('generates a config that mentions only the local backend', async () => {
+    const fresh = createTestRepo(baseUrl);
+    try {
+      await fresh.run(['init', '--force']);
+      const config = readFileSync(join(fresh.dir, '.commilot.yml'), 'utf8');
+      expect(config).toContain('provider: ollama');
+      expect(config).not.toMatch(FORBIDDEN);
+    } finally {
+      fresh.cleanup();
+    }
+  });
+});
+
 describe('providers (AC-14)', () => {
   it('shows Ollama and nothing else', async () => {
     const { stdout, exitCode } = await repo.run(['providers']);

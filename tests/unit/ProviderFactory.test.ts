@@ -72,9 +72,24 @@ describe('createProvider', () => {
     try {
       ProviderFactory.createProvider(config({ provider: 'llama-at-home' }));
     } catch (err) {
-      expect((err as Error).message).toContain('Available: gemini, openai, claude, ollama');
+      // Only what the user can actually select: naming a switched-off backend
+      // would advertise something --provider then refuses.
+      expect((err as Error).message).toContain('Available: gemini');
+      expect((err as Error).message).not.toContain('openai');
       // Nothing is planned-but-unreleased any more, so no dangling clause.
       expect((err as Error).message).not.toContain('Coming soon');
+    }
+  });
+
+  it('offers only the enabled backends when the name is unknown', () => {
+    try {
+      ProviderFactory.createProvider(configSchema.parse({ provider: 'nope' }));
+      expect.unreachable('should have thrown');
+    } catch (err) {
+      expect((err as Error).message).toContain('Available: ollama.');
+      for (const hidden of ['gemini', 'openai', 'claude']) {
+        expect((err as Error).message).not.toContain(hidden);
+      }
     }
   });
 
