@@ -58,8 +58,14 @@ const REGISTRY: Record<ProviderName, ProviderDescriptor> = {
   },
 };
 
-function availableNames(): string[] {
-  return PROVIDER_NAMES.filter((name) => REGISTRY[name].available);
+/**
+ * What to offer someone who asked for a backend that does not exist.
+ *
+ * Only the ones they can actually select: naming the hosted backends here
+ * would advertise something `--provider gemini` then refuses.
+ */
+function availableNames(config: Config): string[] {
+  return PROVIDER_NAMES.filter((name) => REGISTRY[name].available && config[name].enabled);
 }
 
 function plannedNames(): string[] {
@@ -79,7 +85,7 @@ export class ProviderFactory {
   static createProvider(config: Config, override?: string, model?: string): AIProvider {
     const name = (override ?? config.provider).trim().toLowerCase();
     if (!isKnownProvider(name) || !REGISTRY[name].available) {
-      throw new UnsupportedProviderError(name, availableNames(), plannedNames());
+      throw new UnsupportedProviderError(name, availableNames(config), plannedNames());
     }
 
     const descriptor = REGISTRY[name];
