@@ -1,17 +1,29 @@
 {
   "name": "commilot",
   "version": "1.6.2",
-  "description": "AI-powered commit message generator & splitter \u2014 commit + copilot",
+  "description": "Writes your git commit messages and splits a large diff into several clean commits \u2014 locally, with no API key",
   "keywords": [
     "git",
     "commit",
-    "ai",
-    "gemini",
-    "cli",
+    "commit-message",
     "conventional-commits",
-    "commit-message"
+    "ollama",
+    "local-llm",
+    "ai",
+    "cli",
+    "developer-tools",
+    "git-hook"
   ],
   "license": "MIT",
+  "author": "elsycharles",
+  "homepage": "https://github.com/elsycharles/commilot#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/elsycharles/commilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/elsycharles/commilot/issues"
+  },
   "type": "module",
   "engines": {
     "node": ">=20"
