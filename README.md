@@ -240,7 +240,7 @@ behaviour:
     - 'package-lock.json'
     - '*.min.js'
   splitMaxCommits: 10
-  splitMinCommits: 1 # raise it to push for finer grouping
+  splitMinCommits: 2 # a split that returns one commit has not split anything
   confirmBeforeCommit: true
   cacheMinutes: 60 # reuse the answer for an identical diff; 0 disables
 ```
@@ -337,9 +337,11 @@ commilot config set ollama.model qwen2.5-coder:7b # from now on
 | `qwen2.5-coder:7b` | ~5 GB | better at code and at splitting |
 | `llama3.2:3b`      | ~2 GB | faster, less accurate           |
 
-If `split` lumps everything together, `--min-commits 4` asks for a finer breakdown. It is a request,
-not a guarantee: when the model cannot justify that many, Commilot says so rather than inventing
-groups.
+`split` asks for **at least two commits** by default — returning one would not be splitting. It
+never asks for more groups than there are files, so a one-file change still yields one commit.
+
+If the result is still too coarse, `--min-commits 4` pushes further. It is a request, not a
+guarantee: when the model cannot justify that many, Commilot says so rather than inventing groups.
 
 A local model is less precise than a hosted one. You will sometimes see a `misc` commit holding
 whatever it could not classify. **No file is ever lost** — that part is guaranteed; the quality of

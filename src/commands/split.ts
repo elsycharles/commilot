@@ -27,7 +27,12 @@ export async function splitCommand(opts: SplitOptions, cwd: string = process.cwd
   const { git, config, provider, providerName, diff } = ctx;
   const review = new ReviewUI(config.format);
   const maxCommits = opts.maxCommits ?? config.behaviour.splitMaxCommits;
-  const minCommits = Math.min(opts.minCommits ?? config.behaviour.splitMinCommits, maxCommits);
+  // Never ask for more groups than there are files to put in them.
+  const minCommits = Math.min(
+    opts.minCommits ?? config.behaviour.splitMinCommits,
+    maxCommits,
+    diff.files.length,
+  );
 
   // Remember the staging state so cancelling leaves the repo untouched.
   const originalStaged = await git.getStagedFiles();

@@ -51,8 +51,13 @@ export const behaviourConfigSchema = z.object({
     .array(z.string())
     .default(['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', '*.min.js', '*.min.css']),
   splitMaxCommits: z.number().int().positive().max(50).default(10),
-  /** Fewest commits `split` may propose. Raise it to force finer grouping. */
-  splitMinCommits: z.number().int().positive().max(50).default(1),
+  /**
+   * Fewest commits `split` may propose. Two by default: a command called
+   * `split` that returns one commit has not split anything. Never applied
+   * beyond the number of files, since a one-file change cannot become two
+   * commits, and it stays a request — the model is asked, not forced.
+   */
+  splitMinCommits: z.number().int().positive().max(50).default(2),
   confirmBeforeCommit: z.boolean().default(true),
   /** Reuse an identical answer for this long instead of paying a request. 0 disables. */
   cacheMinutes: z.number().int().min(0).default(60),

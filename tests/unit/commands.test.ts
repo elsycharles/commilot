@@ -211,7 +211,23 @@ describe('splitCommand', () => {
     expect(stdout.join('\n')).toContain('Commit Plan (2 commits)');
   });
 
-  it('falls back to a single commit when the AI groups nothing (AC-21)', async () => {
+  it('asks again when the plan is coarser than splitMinCommits', async () => {
+    // `split` returning one commit has not split anything, so the default is
+    // two. An empty answer is asked about once more before being accepted.
+    reply(JSON.stringify([]));
+    reply(plan);
+
+    await splitCommand({ all: true, yes: true }, repo);
+
+    expect(log().slice(0, 2)).toEqual([
+      'dev(config) - update eslint rules',
+      'feat(auth) - add login endpoint',
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps a single fallback commit when asking again changes nothing (AC-21)', async () => {
+    reply(JSON.stringify([]));
     reply(JSON.stringify([]));
 
     await splitCommand({ all: true, yes: true }, repo);
@@ -221,6 +237,22 @@ describe('splitCommand', () => {
     const committed = git('show', '--name-only', '--format=', 'HEAD');
     expect(committed).toContain('auth.ts');
     expect(committed).toContain('.eslintrc.json');
+  });
+
+  it('never asks for more groups than there are files', async () => {
+    // A one-file change cannot become two commits; asking would waste a call
+    // and invite the model to invent a split.
+    rmSync(join(repo, '.eslintrc.json'), { force: true });
+    reply(
+      JSON.stringify([
+        { type: 'feat', scope: 'auth', description: 'add login', files: ['auth.ts'] },
+      ]),
+    );
+
+    await splitCommand({ all: true, yes: true }, repo);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(log()[0]).toBe('feat(auth) - add login');
   });
 
   it('splits only the staged changes with --staged', async () => {
