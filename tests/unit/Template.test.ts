@@ -67,7 +67,9 @@ describe('formatCommitMessage with custom fields', () => {
       format,
     );
 
-    expect(message).toBe('add login call (Login Endpoint) : feat to authenticate users | developer');
+    expect(message).toBe(
+      'add login call (Login Endpoint) : feat to authenticate users | developer',
+    );
   });
 
   it('repeats a placeholder as many times as it appears', () => {
@@ -76,7 +78,10 @@ describe('formatCommitMessage with custom fields', () => {
   });
 
   it('tidies up brackets left empty by a missing value', () => {
-    const format = fmt({ template: '{type}({scope}) [{ticket}] {description}', fields: { ticket: {} } });
+    const format = fmt({
+      template: '{type}({scope}) [{ticket}] {description}',
+      fields: { ticket: {} },
+    });
     const message = formatCommitMessage({ ...group, fields: { ticket: '' } }, format);
     expect(message).toBe('feat(auth) add login');
   });

@@ -13,6 +13,16 @@ import {
 } from '../fixtures/responses.js';
 
 export const REPO_ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
+
+/**
+ * A cache directory of this run's own.
+ *
+ * Without it the suite shares `tmpdir()/commilot-cache` with the developer's
+ * real usage and with its own previous run: the tests that count requests then
+ * see a cache hit and no request at all, so `npm test` stops being repeatable
+ * within the cache lifetime.
+ */
+export const CACHE_DIR = mkdtempSync(join(tmpdir(), 'commilot-e2e-cache-'));
 export const CLI = join(REPO_ROOT, 'dist', 'index.js');
 
 /** Build the CLI once, and only when dist is missing or older than src. */
@@ -156,6 +166,7 @@ export async function runCli(
       COMMILOT_CLAUDE_KEY: '',
       // These tests count requests: a shared cached answer would make them lie.
       COMMILOT_CACHE_MINUTES: '0',
+      COMMILOT_CACHE_DIR: CACHE_DIR,
       FORCE_COLOR: '0',
       ...env,
     },

@@ -102,12 +102,11 @@ export async function initCommand(opts: InitOptions, cwd: string = process.cwd()
     ensureGitignored(cwd);
   }
 
+  // No key to ask for: Commilot runs against a local model.
   logger.blank();
-  logger.info(`  Next: add your API key.`);
-  logger.info(
-    `    ${chalk.dim('•')} export ${chalk.cyan('COMMILOT_GEMINI_KEY=<your key>')} ${chalk.dim('(recommended)')}`,
-  );
-  logger.info(`    ${chalk.dim('•')} or set ${chalk.cyan('gemini.apiKey')} in the file above`);
+  logger.info(`  Next: make sure Ollama is running and a model is pulled.`);
+  logger.info(`    ${chalk.dim('•')} ${chalk.cyan('ollama serve')}`);
+  logger.info(`    ${chalk.dim('•')} ${chalk.cyan('ollama pull llama3.1')}`);
   logger.info(`  Then run ${chalk.cyan('commilot generate')} on some staged changes.`);
 }
 
